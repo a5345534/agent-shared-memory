@@ -637,14 +637,56 @@ def render_fix_diff(path: Path, old: str, new: str, root: Path) -> str:
     )
 
 
-def output_findings(findings: list[Finding], args: argparse.Namespace) -> None:
-    if args.format == "json":
-        print(json.dumps([dataclasses.asdict(finding) for finding in findings], ensure_ascii=False, indent=2))
-        return
+def finding_to_report_issue(finding: Finding) -> dict[str, object]:
+    """Render a Finding in the stable lint-report issue shape.
 
+    The internal lint engine uses the generic Finding contract
+    (severity/check_id/location/description).  The CLI JSON report preserves the
+    existing follow-up lint report contract (level/code/path/detail) while also
+    carrying the generic fields for consumers that need them.
+    """
+    level = "warning" if finding.severity == "warn" else finding.severity
+    return {
+        "level": level,
+        "code": finding.check_id,
+        "path": finding.location,
+        "detail": finding.description,
+        "surface": finding.surface,
+        "fixHint": finding.fix_hint,
+        "severity": finding.severity,
+        "check_id": finding.check_id,
+        "location": finding.location,
+        "description": finding.description,
+        "fix_hint": finding.fix_hint,
+    }
+
+
+def output_findings(findings: list[Finding], args: argparse.Namespace, root: Path) -> None:
     counts = {severity: 0 for severity in ("error", "warn", "info")}
     for finding in findings:
         counts[finding.severity] = counts.get(finding.severity, 0) + 1
+
+    if args.format == "json":
+        errors = [finding_to_report_issue(f) for f in findings if f.severity == "error"]
+        warnings = [finding_to_report_issue(f) for f in findings if f.severity == "warn"]
+        infos = [finding_to_report_issue(f) for f in findings if f.severity == "info"]
+        report = {
+            "version": LINT_VERSION,
+            "generatedAt": now_iso(),
+            "followupFilesChecked": len(collect_followup_files(root)),
+            "queryIndexChecked": bool(args.check_query_index),
+            "errors": errors,
+            "warnings": warnings,
+            "infos": infos,
+            "errorCount": len(errors),
+            "warningCount": len(warnings),
+            "infoCount": len(infos),
+            "findings": [dataclasses.asdict(finding) for finding in findings],
+        }
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return
+
+    print("Shared Memory Lint Report")
     print(f"Knowledge lint: {counts['error']} error / {counts['warn']} warn / {counts['info']} info")
 
     visible = findings if args.include_info else [finding for finding in findings if finding.severity != "info"]
@@ -1500,7 +1542,7 @@ def main() -> int:
             )
         )
     else:
-        output_findings(findings, args)
+        output_findings(findings, args, root)
     if args.fail_on == "never":
         return 0
     if args.fail_on == "warn":

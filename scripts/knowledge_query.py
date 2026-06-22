@@ -1790,7 +1790,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     resolve_parser.add_argument(
         "--task-type",
-        help="Filter by task type (matched against tags)",
+        help="Task type for ranking boost (not a hard filter)",
     )
     resolve_parser.add_argument(
         "--query",
