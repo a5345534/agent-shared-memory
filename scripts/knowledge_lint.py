@@ -166,24 +166,6 @@ def resolve_local_link(root: Path, source: Path, raw_target: str) -> Path | None
             return root_relative.resolve()
     return relative
 
-
-def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
-    if not text.startswith("---\n"):
-        return {}, text
-    end = text.find("\n---", 4)
-    if end == -1:
-        return {}, text
-    block = text[4:end]
-    body = text[end + len("\n---") :].lstrip("\n")
-    values: dict[str, str] = {}
-    for line in block.splitlines():
-        if ":" not in line or line.startswith((" ", "\t")):
-            continue
-        key, value = line.split(":", 1)
-        values[key.strip()] = value.strip().strip('"').strip("'")
-    return values, body
-
-
 def memory_files(root: Path) -> list[Path]:
     shared = root / "knowledge/shared-memory"
     files = []
@@ -712,46 +694,6 @@ SCAN_DIRS = ("workspace", "module", "capability")
 SKIP_DIRS = {"inbox", "followups", ".index"}
 SKIP_FILES = {"README.md", "MEMORY.md"}
 FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
-VALID_MEMORY_TYPES = {
-    "feedback",
-    "project",
-    "reference",
-    "user",
-    "architectural-invariant",
-    "deprecated",
-}
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def find_workspace_root(start: Path) -> Path:
-    """Locate the workspace root.
-
-    Strategy (in order):
-    1. Walk up from *start* to find AGENTS.md (existing convention).
-    2. Walk up to find knowledge/shared-memory/ directory.
-    3. Walk up to find goal-dag-spec.json.
-    4. Fall back to *start* itself if nothing else matches.
-    """
-    current = start.resolve()
-    if current.is_file():
-        current = current.parent
-    markers = ["AGENTS.md", "knowledge/shared-memory", "goal-dag-spec.json"]
-    for candidate in [current, *current.parents]:
-        for marker in markers:
-            marker_path = candidate / marker
-            if marker_path.exists():
-                return candidate
-    # Last resort: return start directory
-    return start.resolve() if start.resolve().is_dir() else start.resolve().parent
-
-
-def rel(root: Path, path: Path) -> str:
-    return path.resolve().relative_to(root.resolve()).as_posix()
-
-
 def now_iso() -> str:
     return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -1340,7 +1282,6 @@ def compute_content_hash_from_entries(entries: list[dict[str, Any]]) -> str:
             json.dumps(sorted(entry["tags"]), ensure_ascii=False),
             entry["body_hash"],
             entry["body"],
-            entry["updated_at"],
         ]
         rows.append("\t".join(row_parts))
     combined = "\n".join(rows)
@@ -1458,15 +1399,21 @@ def check_followup_artifacts(root, findings, max_age_days):
     for art_path in collect_followup_files(root):
         for issue in validate_followup(root, art_path):
             findings.append(Finding(
-                severity=issue.severity, check_id=issue.check_id,
-                surface="followup-artifact", location=issue.location,
-                description=issue.description, fix_hint=issue.fix_hint or "",
+                severity="error" if issue.level == "error" else "warn",
+                check_id=issue.code,
+                surface="followup-artifact",
+                location=issue.path,
+                description=issue.detail,
+                fix_hint="Fix the follow-up artifact contract violations.",
             ))
         for issue in check_followup_aging(root, art_path, max_age_days):
             findings.append(Finding(
-                severity=issue.severity, check_id=issue.check_id,
-                surface="followup-artifact", location=issue.location,
-                description=issue.description, fix_hint=issue.fix_hint or "",
+                severity="error" if issue.level == "error" else "warn",
+                check_id=issue.code,
+                surface="followup-artifact",
+                location=issue.path,
+                description=issue.detail,
+                fix_hint="Resolve or close the aged follow-up artifact.",
             ))
 
 
@@ -1474,9 +1421,12 @@ def check_query_index_lint(root, findings):
     """Optional query index staleness and mismatch checks."""
     for issue in check_query_index(root):
         findings.append(Finding(
-            severity=issue.severity, check_id=issue.check_id,
-            surface="query-index", location=issue.location,
-            description=issue.description, fix_hint=issue.fix_hint or "",
+            severity="error" if issue.level == "error" else "warn",
+            check_id=issue.code,
+            surface="query-index",
+            location=issue.path,
+            description=issue.detail,
+            fix_hint="Run 'python3 scripts/knowledge_query.py rebuild-index' to rebuild.",
         ))
 
 

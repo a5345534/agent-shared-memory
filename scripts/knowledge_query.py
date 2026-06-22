@@ -64,7 +64,7 @@ DEFAULT_STALE_DAYS = 365  # entries older than this receive a staleness penalty
 # Helpers
 # ---------------------------------------------------------------------------
 
-def find_workspace_root(start: Path) -> Path:
+def find_workspace_root(start: Path, allow_fallback: bool = False) -> Path:
     """Locate the workspace root.
 
     Strategy (in order):
@@ -477,7 +477,6 @@ def compute_content_hash(entries: list[MemoryEntry]) -> str:
             json.dumps(sorted(entry.tags), ensure_ascii=False),
             entry.body_hash,
             entry.body,
-            entry.updated_at,
         ]
         rows.append("\t".join(row_parts))
     combined = "\n".join(rows)
@@ -724,13 +723,18 @@ def compute_score(
     final_score = max(0.0, total)
 
     # Task-type tag boost (ranking signal only, not a hard filter).
-    # Entries whose tags_json contains the task_type get a small boost.
+    # Checks both tags list and tags_json string for compatibility.
+    tags = entry.get("tags") or []
     tags_json = entry.get("tags_json", "") or ""
-    if task_type and task_type.lower() in tags_json.lower():
-        boost = 0.10
-        breakdown["task_type"] = round(boost, 4)
-        total += boost
-        reasons.append(f"task-type tag ({task_type}): +{boost:.2f}")
+    if task_type:
+        task_lower = task_type.lower()
+        in_tags = any(task_lower in (t.lower() if isinstance(t, str) else str(t).lower()) for t in (tags if isinstance(tags, list) else []))
+        in_json = task_lower in tags_json.lower()
+        if in_tags or in_json:
+            boost = 0.10
+            breakdown["task_type"] = round(boost, 4)
+            total += boost
+            reasons.append(f"task-type tag ({task_type}): +{boost:.2f}")
 
     # Re-compute final after task_type boost
     final_score = max(0.0, total)
