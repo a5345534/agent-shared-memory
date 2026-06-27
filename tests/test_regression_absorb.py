@@ -302,7 +302,7 @@ class TestLintRegression:
         """Lint on a valid followup artifact produces no errors when sourceCandidate exists."""
         from tests.conftest import _write_followup_artifact
 
-        # The default followup artifact references knowledge/shared-memory/inbox/test.md
+        # The default followup artifact references knowledge/inbox/test.md.
         # We must create this inbox candidate for the lint to pass
         _write_inbox_candidate(workspace, "test.md", name="Test Memory")
         _write_followup_artifact(workspace, "skill_followup", "test-001.json")
@@ -311,6 +311,19 @@ class TestLintRegression:
         assert rc == 0, f"Lint failed: stdout={stdout} stderr={stderr}"
         data = json.loads(stdout)
         assert data["errorCount"] == 0
+
+    def test_lint_reports_workspace_inbox_pressure(self, workspace, monkeypatch):
+        """Lint reads inbox candidates from knowledge/inbox/."""
+        monkeypatch.setenv("SHARED_MEMORY_INBOX_MAX_COUNT", "0")
+        _write_inbox_candidate(workspace, "test.md", name="Test Memory")
+
+        rc, stdout, stderr = _run_lint(workspace, "--format", "json")
+        assert rc == 0, f"Lint failed: stdout={stdout} stderr={stderr}"
+        data = json.loads(stdout)
+        warnings = data.get("warnings", [])
+        inbox_warnings = [w for w in warnings if w["code"] == "memory-inbox-volume"]
+        assert inbox_warnings
+        assert inbox_warnings[0]["location"] == "knowledge/inbox"
 
     def test_lint_invalid_json_reports_error(self, workspace):
         """Lint on invalid JSON reports an error."""

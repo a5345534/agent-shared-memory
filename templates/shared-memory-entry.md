@@ -26,5 +26,5 @@ short and useful to another developer or agent.>
 
 If `scope: workspace`, update:
 
-- `knowledge/shared-memory/workspace/MEMORY.md`
+- `knowledge/facts/workspace/MEMORY.md`
 - Your workspace guide file's embedded shared-memory index

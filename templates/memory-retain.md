@@ -4,9 +4,9 @@ Use when an inbox candidate is a short reusable fact, convention, pitfall, or du
 
 Destination:
 
-- `knowledge/shared-memory/workspace/<name>.md`
-- `knowledge/shared-memory/module/<module>/<name>.md`
-- `knowledge/shared-memory/capability/<capability>/<name>.md`
+- `knowledge/facts/workspace/<name>.md`
+- `knowledge/facts/module/<module>/<name>.md`
+- `knowledge/facts/capability/<capability>/<name>.md`
 
 Rules:
 

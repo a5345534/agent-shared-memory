@@ -174,14 +174,14 @@ def memory_files(root: Path) -> list[Path]:
         rel_path = rel(root, path)
         if name in {"README.md", "MEMORY.md"}:
             continue
-        if rel_path.startswith("knowledge/shared-memory/inbox/"):
+        if rel_path.startswith("knowledge/inbox/"):
             continue
         files.append(path)
     return sorted(files)
 
 
 def inbox_candidate_files(root: Path) -> list[Path]:
-    inbox = root / "knowledge/shared-memory/inbox"
+    inbox = root / "knowledge/inbox"
     if not inbox.exists():
         return []
     return sorted(path for path in inbox.glob("*.md") if path.name != "README.md")
@@ -237,7 +237,7 @@ def check_inbox_candidates(root: Path, findings: list[Finding]) -> None:
             "warn",
             "memory-inbox-volume",
             "shared-memory",
-            "knowledge/shared-memory/inbox",
+            "knowledge/inbox",
             f"Shared-memory inbox contains {len(inbox_files)} candidates; threshold is {inbox_max_count}.",
             "Run the absorption workflow: python3 scripts/knowledge_absorb.py hook",
         )
@@ -835,7 +835,7 @@ def parse_iso_datetime_date(s: str) -> dt.date | None:
 # ---------------------------------------------------------------------------
 
 def followup_dirs(root: Path) -> list[Path]:
-    """Return existing follow-up kind directories under knowledge/shared-memory/followups/."""
+    """Return existing follow-up kind directories under knowledge/followups/."""
     followups_root = root / "knowledge" / "followups"
     if not followups_root.exists():
         return []
