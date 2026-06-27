@@ -42,8 +42,17 @@ order:
 ### Pi (`pi.py`)
 
 Detects [Pi agent harness](https://github.com/earendil-works/pi-coding-agent)
-via `~/.pi/`. Installs a post-compact hook script at
-`~/.pi/hooks/post-compact/shared-knowledge-absorb.sh`.
+via `~/.pi/`. By default, `knowledge init` installs a workspace-local
+post-compact hook at
+`<workspace>/.pi/hooks/post-compact/shared-knowledge-absorb.sh`.
+
+Global Pi hooks are opt-in:
+
+```bash
+python3 shared-knowledge/scripts/knowledge_query.py --root . init --hook-scope global
+```
+
+That writes to `~/.pi/hooks/post-compact/shared-knowledge-absorb.sh`.
 
 ### OpenCode (`opencode.py`)
 

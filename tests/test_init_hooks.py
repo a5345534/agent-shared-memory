@@ -117,16 +117,21 @@ class TestPiHookAdapter:
     """Tests for scripts.hooks.pi.install()."""
 
     def test_install_pi_hook_ok(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Pi hook is installed when ~/.pi/ exists."""
-        fake_pi = tmp_path / ".pi"
-        fake_pi.mkdir()
-        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        """Pi hook is installed workspace-locally by default when ~/.pi/ exists."""
+        root = tmp_path / "ws"
+        root.mkdir()
+        fake_home = tmp_path / "home"
+        fake_pi = fake_home / ".pi"
+        fake_pi.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: fake_home)
 
-        result = pi.install(tmp_path)
+        result = pi.install(root)
         assert result["status"] == "ok"
         assert result["path"] is not None
+        assert result["scope"] == "workspace"
 
         hook_path = Path(result["path"])  # type: ignore[arg-type]
+        assert hook_path == root / ".pi" / "hooks" / "post-compact" / "shared-knowledge-absorb.sh"
         _check_hook_script_syntax(hook_path)
 
     def test_install_pi_hook_skipped_when_no_pi(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -143,33 +148,55 @@ class TestPiHookAdapter:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """Pi hook returns 'skipped' when hook script already matches."""
-        fake_pi = tmp_path / ".pi"
-        fake_pi.mkdir()
-        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        root = tmp_path / "ws"
+        root.mkdir()
+        fake_home = tmp_path / "home"
+        fake_pi = fake_home / ".pi"
+        fake_pi.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: fake_home)
 
         # First install
-        result1 = pi.install(tmp_path)
+        result1 = pi.install(root)
         assert result1["status"] == "ok"
 
         # Second install — should be skipped
-        result2 = pi.install(tmp_path)
+        result2 = pi.install(root)
         assert result2["status"] == "skipped"
         assert "already installed" in result2["message"]
 
     def test_pi_hook_script_content(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Pi hook script references the correct absorb script path."""
-        fake_pi = tmp_path / ".pi"
-        fake_pi.mkdir()
-        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        """Pi hook script references the workspace-local absorb script path."""
+        root = tmp_path / "ws"
+        root.mkdir()
+        fake_home = tmp_path / "home"
+        fake_pi = fake_home / ".pi"
+        fake_pi.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: fake_home)
 
-        result = pi.install(tmp_path)
+        result = pi.install(root)
         assert result["status"] == "ok"
         hook_path = Path(result["path"])  # type: ignore[arg-type]
         content = hook_path.read_text(encoding="utf-8")
-        # The hook should reference knowledge_absorb.py
-        assert "knowledge_absorb.py" in content
+        # The hook should reference knowledge_absorb.py via the workspace root.
+        assert "$ROOT/shared-knowledge/scripts/knowledge_absorb.py" in content
         # The hook should use set -e
         assert "set -e" in content
+
+    def test_install_pi_hook_global_scope_is_opt_in(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Pi global hook is only installed when scope='global' is requested."""
+        root = tmp_path / "ws"
+        root.mkdir()
+        fake_home = tmp_path / "home"
+        fake_pi = fake_home / ".pi"
+        fake_pi.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: fake_home)
+
+        result = pi.install(root, scope="global")
+        assert result["status"] == "ok"
+        assert result["scope"] == "global"
+        hook_path = Path(result["path"])  # type: ignore[arg-type]
+        assert hook_path == fake_pi / "hooks" / "post-compact" / "shared-knowledge-absorb.sh"
+        _check_hook_script_syntax(hook_path)
 
 
 class TestOpenCodeHookAdapter:

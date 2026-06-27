@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Pi harness hook adapter.
 
-Detects Pi via ~/.pi/ dir, installs post-compact hook calling knowledge_absorb.py hook.
+Detects Pi via ~/.pi/ dir and installs a post-compact hook calling
+knowledge_absorb.py hook. The default install scope is workspace-local;
+global installation under ~/.pi is opt-in.
 """
 from __future__ import annotations
 
@@ -10,32 +12,61 @@ from pathlib import Path
 from typing import Any
 
 
-def install(root: Path) -> dict[str, Any]:
+def install(root: Path, scope: str = "workspace") -> dict[str, Any]:
+    if scope not in {"workspace", "global"}:
+        return {"status": "failed", "message": f"Unsupported Pi hook scope: {scope}", "path": None}
+
     pi_dir = Path.home() / ".pi"
     if not pi_dir.is_dir():
         return {"status": "skipped", "message": "Pi harness not detected (~/.pi/ not found).", "path": None}
 
-    hooks_dir = pi_dir / "hooks" / "post-compact"
+    hooks_dir = (root.resolve() / ".pi" if scope == "workspace" else pi_dir) / "hooks" / "post-compact"
     hook_path = hooks_dir / "shared-knowledge-absorb.sh"
-    hook_content = _hook_script(root)
+    hook_content = _hook_script(root, scope)
 
     if hook_path.is_file() and hook_path.read_text(encoding="utf-8").strip() == hook_content.strip():
-        return {"status": "skipped", "message": f"Pi post-compact hook already installed: {hook_path}", "path": str(hook_path)}
+        return {
+            "status": "skipped",
+            "message": f"Pi {scope} post-compact hook already installed: {hook_path}",
+            "path": str(hook_path),
+            "scope": scope,
+        }
 
     try:
         hooks_dir.mkdir(parents=True, exist_ok=True)
         hook_path.write_text(hook_content, encoding="utf-8")
         hook_path.chmod(hook_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-        return {"status": "ok", "message": f"Pi post-compact hook installed: {hook_path}", "path": str(hook_path)}
+        return {
+            "status": "ok",
+            "message": f"Pi {scope} post-compact hook installed: {hook_path}",
+            "path": str(hook_path),
+            "scope": scope,
+        }
     except (OSError, PermissionError) as exc:
-        return {"status": "failed", "message": f"Failed to install Pi hook: {exc}", "path": str(hook_path) if hook_path.exists() else None}
+        return {
+            "status": "failed",
+            "message": f"Failed to install Pi {scope} hook: {exc}",
+            "path": str(hook_path) if hook_path.exists() else None,
+            "scope": scope,
+        }
 
 
-def _hook_script(root: Path) -> str:
+def _hook_script(root: Path, scope: str) -> str:
+    root_path = root.resolve()
+    if scope == "workspace":
+        return """#!/usr/bin/env sh
+# Pi workspace post-compact hook -- installed by shared-knowledge init
+set -e
+HOOK_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT=$(CDPATH= cd -- "$HOOK_DIR/../../.." && pwd)
+cd "$ROOT"
+python3 "$ROOT/shared-knowledge/scripts/knowledge_absorb.py" hook
+"""
+
     absorb = Path(__file__).resolve().parents[1] / "knowledge_absorb.py"
     return f"""#!/usr/bin/env sh
-# Pi post-compact hook -- installed by shared-knowledge init
+# Pi global post-compact hook -- installed by shared-knowledge init --hook-scope global
 set -e
-cd "{root.resolve()}"
+cd "{root_path}"
 python3 "{absorb}" hook
 """

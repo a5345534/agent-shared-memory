@@ -43,13 +43,16 @@ python3 shared-knowledge/scripts/knowledge_query.py --root . init
 
 This creates `knowledge/`, copies starter files, injects the B1 section into
 `AGENTS.md`, ignores the local SQLite index cache, builds the first query index,
-and installs the best available hook adapter.
+and installs the best available hook adapter. Pi hooks are workspace-local by
+default (`<workspace>/.pi/hooks/...`); use `--hook-scope global` only when you
+explicitly want to write under `~/.pi`.
 
 Useful variants:
 
 ```bash
 python3 shared-knowledge/scripts/knowledge_query.py --root . init --skip-hook
 python3 shared-knowledge/scripts/knowledge_query.py --root . init --dry-run
+python3 shared-knowledge/scripts/knowledge_query.py --root . init --hook-scope global
 ```
 
 ### 3. Run periodic lint

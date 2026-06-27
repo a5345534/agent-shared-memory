@@ -1959,7 +1959,7 @@ def detect_harness(root: Path) -> tuple[str, str]:
     return "none", "hooks.none"
 
 
-def _init_install_hook(root: Path, dry_run: bool = False) -> dict:
+def _init_install_hook(root: Path, dry_run: bool = False, hook_scope: str = "workspace") -> dict:
     """Detect the active harness and install the matching hook adapter.
 
     Uses detect_harness() to find the active harness, then dynamically
@@ -1978,11 +1978,13 @@ def _init_install_hook(root: Path, dry_run: bool = False) -> dict:
                 "path": None,
                 "harness": harness_name,
             }
+        scope_suffix = f" ({hook_scope} scope)" if harness_name == "pi" else ""
         return {
             "status": "ok",
-            "message": f"[dry-run] would install {harness_name} hook adapter",
+            "message": f"[dry-run] would install {harness_name} hook adapter{scope_suffix}",
             "path": None,
             "harness": harness_name,
+            "scope": hook_scope if harness_name == "pi" else None,
         }
 
     # Verified safe: importlib.import_module is stdlib.
@@ -1997,7 +1999,10 @@ def _init_install_hook(root: Path, dry_run: bool = False) -> dict:
             "harness": harness_name,
         }
 
-    result = adapter.install(root)
+    if harness_name == "pi":
+        result = adapter.install(root, scope=hook_scope)
+    else:
+        result = adapter.install(root)
     result["harness"] = harness_name
     return result
 
@@ -2019,6 +2024,7 @@ def cmd_init(root: Path, args: argparse.Namespace | None = None) -> int:
     """
     skip_hook = getattr(args, "skip_hook", False) if args else False
     dry_run = getattr(args, "dry_run", False) if args else False
+    hook_scope = getattr(args, "hook_scope", "workspace") if args else "workspace"
 
     print("knowledge init")
     if dry_run:
@@ -2063,7 +2069,8 @@ def cmd_init(root: Path, args: argparse.Namespace | None = None) -> int:
             if harness_name == "none":
                 hook_msg = f"[dry-run] would print manual hook instructions (harness: {harness_name})"
             else:
-                hook_msg = f"[dry-run] would install {harness_name} hook adapter"
+                scope_suffix = f" ({hook_scope} scope)" if harness_name == "pi" else ""
+                hook_msg = f"[dry-run] would install {harness_name} hook adapter{scope_suffix}"
             steps.append(("🪝  hook", {"status": "ok", "message": hook_msg, "path": None, "harness": harness_name}))
         else:
             steps.append(("🪝  hook", {"status": "skipped", "message": "skipped (--skip-hook)"}))
@@ -2090,7 +2097,7 @@ def cmd_init(root: Path, args: argparse.Namespace | None = None) -> int:
 
         # Step 6: Hook adapter (Slice 3 — harness detection + dispatch)
         if not skip_hook:
-            result = _init_install_hook(root)
+            result = _init_install_hook(root, hook_scope=hook_scope)
             steps.append(("🪝  hook", result))
         else:
             steps.append(("🪝  hook", {"status": "skipped", "message": "skipped (--skip-hook)"}))
@@ -2289,6 +2296,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run",
         action="store_true",
         help="Print what would be done without making any changes",
+    )
+    init_parser.add_argument(
+        "--hook-scope",
+        choices=("workspace", "global"),
+        default="workspace",
+        help="Pi hook install scope: workspace-local by default; use global to write under ~/.pi",
     )
 
     return parser
