@@ -24,10 +24,10 @@ machine-readable** so:
 ### 1. Add the directory structure to your workspace
 
 ```bash
-mkdir -p knowledge/shared-memory/{workspace,module,capability,inbox}
+mkdir -p knowledge/facts/{workspace,module,capability,inbox}
 ```
 
-Copy the starter READMEs from `starter/knowledge/shared-memory/` into your
+Copy the starter READMEs from `starter/knowledge/facts/` into your
 workspace.
 
 ### 2. Install the scripts
@@ -42,7 +42,7 @@ cp scripts/knowledge_query.py agent-workspace/skills/shared-memory/scripts/
 ### 3. Wire into your workspace guide (AGENTS.md)
 
 Add a `## Workspace Shared Memory` section to your `AGENTS.md` that references
-`knowledge/shared-memory/workspace/MEMORY.md` as the always-on index (B1
+`knowledge/facts/workspace/MEMORY.md` as the always-on index (B1
 mechanism).
 
 ### 4. Run periodic lint
@@ -54,7 +54,7 @@ python3 agent-workspace/skills/shared-memory/scripts/knowledge_lint.py
 ## Directory Structure
 
 ```
-knowledge/shared-memory/
+knowledge/facts/
 ├── README.md                    # Convention docs + contributing guide
 ├── inbox/                       # Generated candidates; not always-on
 │   └── README.md
@@ -188,7 +188,7 @@ python3 knowledge_query.py explain --query "validation hook"
 
 When absorption classifies an inbox candidate as `promote_to_skill` or
 `promote_to_module_doc`, a structured JSON follow-up artifact is created under
-`knowledge/shared-memory/followups/`. The artifact tracks status, evidence,
+`knowledge/followups/`. The artifact tracks status, evidence,
 recommended outputs, and (when completed) actual outputs — without creating
 skills or writing module docs.
 
@@ -234,9 +234,9 @@ When an entry is superseded:
 New fact → useful to another dev?
 ├── Yes (workspace shared)
 │   └── Spans multiple modules/capabilities?
-│       ├── Yes → knowledge/shared-memory/workspace/
-│       ├── One module → knowledge/shared-memory/module/<name>/
-│       └── One capability → knowledge/shared-memory/capability/<name>/
+│       ├── Yes → knowledge/facts/workspace/
+│       ├── One module → knowledge/facts/module/<name>/
+│       └── One capability → knowledge/facts/capability/<name>/
 └── No (personal preference)
     └── Keep in user-local agent memory/config (don't track in git)
 ```

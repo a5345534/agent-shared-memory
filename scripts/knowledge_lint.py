@@ -167,7 +167,7 @@ def resolve_local_link(root: Path, source: Path, raw_target: str) -> Path | None
     return relative
 
 def memory_files(root: Path) -> list[Path]:
-    shared = root / "knowledge/shared-memory"
+    shared = root / "knowledge/facts"
     files = []
     for path in iter_files(shared, (".md",)):
         name = path.name
@@ -188,7 +188,7 @@ def inbox_candidate_files(root: Path) -> list[Path]:
 
 
 def workspace_memory_files(root: Path) -> list[Path]:
-    workspace = root / "knowledge/shared-memory/workspace"
+    workspace = root / "knowledge/facts/workspace"
     if not workspace.exists():
         return []
     return sorted(path for path in workspace.glob("*.md") if path.name not in {"README.md", "MEMORY.md"})
@@ -205,7 +205,7 @@ def env_int(name: str, default: int) -> int:
 
 
 def expected_memory_scope(root: Path, path: Path) -> str | None:
-    relative = path.relative_to(root / "knowledge/shared-memory")
+    relative = path.relative_to(root / "knowledge/facts")
     parts = relative.parts
     if not parts:
         return None
@@ -278,7 +278,7 @@ def check_workspace_memory_pressure(root: Path, findings: list[Finding], workspa
             "warn",
             "memory-workspace-volume",
             "shared-memory",
-            "knowledge/shared-memory/workspace",
+            "knowledge/facts/workspace",
             f"Curated workspace shared-memory has {workspace_count} active entries; recommended threshold is {workspace_max_count}.",
             "Run knowledge_absorb.py plan --include-workspace-backlog and move/promote/deprecate entries through the absorption workflow.",
         )
@@ -329,7 +329,7 @@ def build_pressure_summary(root: Path) -> dict[str, object]:
 
 
 def check_shared_memory(root: Path, findings: list[Finding], fixes: dict[Path, str], staleness_threshold: int) -> None:
-    shared_root = root / "knowledge/shared-memory"
+    shared_root = root / "knowledge/facts"
     workspace_index = shared_root / "workspace/MEMORY.md"
     workspace_index_text = workspace_index.read_text(encoding="utf-8") if workspace_index.exists() else ""
 
@@ -836,7 +836,7 @@ def parse_iso_datetime_date(s: str) -> dt.date | None:
 
 def followup_dirs(root: Path) -> list[Path]:
     """Return existing follow-up kind directories under knowledge/shared-memory/followups/."""
-    followups_root = root / "knowledge" / "shared-memory" / "followups"
+    followups_root = root / "knowledge" / "followups"
     if not followups_root.exists():
         return []
     result: list[Path] = []
@@ -1235,7 +1235,7 @@ def collect_curated_entries_for_lint(root: Path) -> list[dict[str, Any]]:
     instead of MemoryEntry objects to stay self-contained.
     """
     entries: list[dict[str, Any]] = []
-    shared_memory = root / "knowledge" / "shared-memory"
+    shared_memory = root / "knowledge" / "facts"
     if not shared_memory.exists():
         return entries
 
@@ -1336,7 +1336,7 @@ def check_query_index(root: Path) -> list[LintIssue]:
     Returns a list of LintIssue objects.
     """
     issues: list[LintIssue] = []
-    index_dir = root / "knowledge" / "shared-memory" / ".index"
+    index_dir = root / "knowledge" / ".index"
     sqlite_path = index_dir / "memory.sqlite"
     manifest_path = index_dir / "manifest.json"
 

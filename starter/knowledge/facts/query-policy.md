@@ -5,11 +5,11 @@ for the `knowledge_query.py` query index used by `agent-shared-memory`.
 
 ## Source of truth
 
-Curated Markdown entries under `knowledge/shared-memory/workspace/`,
-`knowledge/shared-memory/module/`, and `knowledge/shared-memory/capability/`
+Curated Markdown entries under `knowledge/facts/workspace/`,
+`knowledge/facts/module/`, and `knowledge/facts/capability/`
 are the **source of truth** for all shared memory content.
 
-The SQLite FTS5 index at `knowledge/shared-memory/.index/memory.sqlite` and
+The SQLite FTS5 index at `knowledge/.index/memory.sqlite` and
 its companion `manifest.json` are **rebuildable caches**. They can be
 regenerated at any time from the Markdown sources with:
 
@@ -135,8 +135,8 @@ Markdown file always produces the same parsed frontmatter values.
 
 ### Not tracked (git-ignored)
 
-- `knowledge/shared-memory/.index/memory.sqlite` — binary SQLite cache
-- `knowledge/shared-memory/.index/manifest.json` — cache metadata; regenerated
+- `knowledge/.index/memory.sqlite` — binary SQLite cache
+- `knowledge/.index/manifest.json` — cache metadata; regenerated
   on rebuild
 
 Rationale: The index is rebuildable from Markdown sources. Committing

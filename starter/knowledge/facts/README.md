@@ -24,7 +24,7 @@ Decision rule: **"Would another dev benefit from knowing this? → share it. Onl
 ## Directory Structure
 
 ```
-knowledge/shared-memory/
+knowledge/facts/
 ├── README.md                    # This file (convention docs + contributing guide)
 ├── inbox/                       # Generated candidates; not always-on
 │   └── README.md
@@ -82,7 +82,7 @@ Create the entry under the matching directory with proper frontmatter and body.
 ### 3. Update indexes (workspace scope only)
 
 If `scope: workspace`, update:
-- `knowledge/shared-memory/workspace/MEMORY.md` — add an index line under the appropriate section
+- `knowledge/facts/workspace/MEMORY.md` — add an index line under the appropriate section
 - Your workspace guide file's embedded shared-memory index
 
 ### 4. Commit and review
@@ -115,9 +115,9 @@ When a task-aware runtime/worker adapter needs to inject shared-memory before ex
 - Actions:
   1. Parse module/capability identifiers from process variables
   2. Load matching scope entries:
-     - `knowledge/shared-memory/workspace/` — all (always-on)
-     - `knowledge/shared-memory/module/<name>/` — if module identifier present
-     - `knowledge/shared-memory/capability/<name>/` — if capability identifier present
+     - `knowledge/facts/workspace/` — all (always-on)
+     - `knowledge/facts/module/<name>/` — if module identifier present
+     - `knowledge/facts/capability/<name>/` — if capability identifier present
   3. Inject loaded content into prompt prefix (recommended heading: `## Workspace Shared Memory (relevant scopes)`)
 
 **Contract does not assume**: runtime implementation form (daemon / worker / custom), LLM platform, or whether retrieval is used.

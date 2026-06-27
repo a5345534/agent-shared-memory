@@ -140,7 +140,7 @@ class TestAbsorbRegression:
         assert error is None
 
         # Check MEMORY.md was updated
-        memory_index = workspace / "knowledge" / "shared-memory" / "workspace" / "MEMORY.md"
+        memory_index = workspace / "knowledge" / "facts" / "workspace" / "MEMORY.md"
         content = memory_index.read_text(encoding="utf-8")
         assert "Indexed Memory" in content or "indexed-memory" in content
 
@@ -314,7 +314,7 @@ class TestLintRegression:
 
     def test_lint_invalid_json_reports_error(self, workspace):
         """Lint on invalid JSON reports an error."""
-        fups_dir = workspace / "knowledge" / "shared-memory" / "followups" / "skill"
+        fups_dir = workspace / "knowledge" / "followups" / "skill"
         fups_dir.mkdir(parents=True, exist_ok=True)
         (fups_dir / "bad.json").write_text("this is not json", encoding="utf-8")
 
@@ -341,7 +341,7 @@ class TestLintRegression:
             "kind": "skill_followup",
             "status": "open",
             "createdAt": old_date,
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Old Followup",

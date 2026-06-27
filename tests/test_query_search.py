@@ -20,7 +20,7 @@ def _build_minimal_index(db_path, entries=None):
         entries = [
             {
                 "id": "a1b2c3d4e5f6a7b8",
-                "path": "knowledge/shared-memory/workspace/test.md",
+                "path": "knowledge/facts/workspace/test.md",
                 "scope": "workspace",
                 "scope_type": "workspace",
                 "scope_name": "",
@@ -37,7 +37,7 @@ def _build_minimal_index(db_path, entries=None):
             },
             {
                 "id": "b2c3d4e5f6a7b8c9",
-                "path": "knowledge/shared-memory/module/testmod/arch.md",
+                "path": "knowledge/facts/module/testmod/arch.md",
                 "scope": "module:testmod",
                 "scope_type": "module",
                 "scope_name": "testmod",
@@ -54,7 +54,7 @@ def _build_minimal_index(db_path, entries=None):
             },
             {
                 "id": "c3d4e5f6a7b8c9d0",
-                "path": "knowledge/shared-memory/workspace/deprecated.md",
+                "path": "knowledge/facts/workspace/deprecated.md",
                 "scope": "workspace",
                 "scope_type": "workspace",
                 "scope_name": "",
@@ -286,7 +286,7 @@ class TestRebuildIndex:
 
         _write_curated_entry(
             workspace,
-            "knowledge/shared-memory/workspace",
+            "knowledge/facts/workspace",
             "entry.md",
             name="Test Entry",
             scope="workspace",
@@ -303,14 +303,14 @@ class TestRebuildIndex:
 
         _write_curated_entry(
             workspace,
-            "knowledge/shared-memory/workspace",
+            "knowledge/facts/workspace",
             "entry1.md",
             name="Entry 1",
             scope="workspace",
         )
         _write_curated_entry(
             workspace,
-            "knowledge/shared-memory/module/testmod",
+            "knowledge/facts/module/testmod",
             "entry2.md",
             name="Entry 2",
             scope="module:testmod",
@@ -331,7 +331,7 @@ class TestRebuildIndex:
     def test_collect_curated_skips_followups(self, workspace):
         """Followup files are not collected as curated entries."""
         # Write a Markdown file in followups (unusual but possible)
-        fups = workspace / "knowledge" / "shared-memory" / "followups" / "test.md"
+        fups = workspace / "knowledge" / "followups" / "test.md"
         fups.parent.mkdir(parents=True, exist_ok=True)
         fups.write_text("---\nname: Test\n---\nBody.\n", encoding="utf-8")
 
@@ -344,11 +344,11 @@ class TestRebuildIndex:
         from tests.conftest import _write_curated_entry
 
         # Create a README.md in workspace
-        (workspace / "knowledge" / "shared-memory" / "workspace" / "README.md").write_text(
+        (workspace / "knowledge" / "facts" / "workspace" / "README.md").write_text(
             "---\nname: Readme\n---\nShould not be indexed.\n", encoding="utf-8"
         )
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "real.md",
+            workspace, "knowledge/facts/workspace", "real.md",
             name="Real", scope="workspace"
         )
 
@@ -375,7 +375,7 @@ class TestManifest:
         from tests.conftest import _write_curated_entry
 
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "e.md",
+            workspace, "knowledge/facts/workspace", "e.md",
             name="E", scope="workspace"
         )
 
@@ -393,7 +393,7 @@ class TestManifest:
         from tests.conftest import _write_curated_entry
 
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "e.md",
+            workspace, "knowledge/facts/workspace", "e.md",
             name="E", scope="workspace", body="Same body content."
         )
 

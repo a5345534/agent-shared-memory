@@ -1,6 +1,6 @@
 # Shared-memory Inbox
 
-`knowledge/shared-memory/inbox/` is the temporary capture layer for generated shared-memory candidates.
+`knowledge/inbox/` is the temporary capture layer for generated shared-memory candidates.
 
 Inbox candidates are **not** curated shared-memory entries:
 

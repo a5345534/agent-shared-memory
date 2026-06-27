@@ -33,15 +33,15 @@ def _make_workspace(base: Path) -> Path:
     ws.mkdir(parents=True, exist_ok=True)
     (ws / "AGENTS.md").write_text("# Test Workspace\n", encoding="utf-8")
     # Create shared-memory directories
-    (ws / "knowledge" / "shared-memory" / "inbox").mkdir(parents=True, exist_ok=True)
-    (ws / "knowledge" / "shared-memory" / "workspace").mkdir(parents=True, exist_ok=True)
-    (ws / "knowledge" / "shared-memory" / "module" / "testmod").mkdir(parents=True, exist_ok=True)
-    (ws / "knowledge" / "shared-memory" / "capability" / "testcap").mkdir(parents=True, exist_ok=True)
-    (ws / "knowledge" / "shared-memory" / "followups" / "skill").mkdir(parents=True, exist_ok=True)
-    (ws / "knowledge" / "shared-memory" / "followups" / "module-doc").mkdir(parents=True, exist_ok=True)
-    (ws / "knowledge" / "shared-memory" / ".index").mkdir(parents=True, exist_ok=True)
+    (ws / "knowledge" / "inbox").mkdir(parents=True, exist_ok=True)
+    (ws / "knowledge" / "facts" / "workspace").mkdir(parents=True, exist_ok=True)
+    (ws / "knowledge" / "facts" / "module" / "testmod").mkdir(parents=True, exist_ok=True)
+    (ws / "knowledge" / "facts" / "capability" / "testcap").mkdir(parents=True, exist_ok=True)
+    (ws / "knowledge" / "followups" / "skill").mkdir(parents=True, exist_ok=True)
+    (ws / "knowledge" / "followups" / "module-doc").mkdir(parents=True, exist_ok=True)
+    (ws / "knowledge" / ".index").mkdir(parents=True, exist_ok=True)
     # Create MEMORY.md workspace index
-    (ws / "knowledge" / "shared-memory" / "workspace" / "MEMORY.md").write_text(
+    (ws / "knowledge" / "facts" / "workspace" / "MEMORY.md").write_text(
         "## Pitfalls / Operational Boundaries\n\n", encoding="utf-8"
     )
     return ws
@@ -79,7 +79,7 @@ def _write_inbox_candidate(
         lines.append(body)
     else:
         lines.append("This is the body of the test memory entry.")
-    inbox = ws / "knowledge" / "shared-memory" / "inbox"
+    inbox = ws / "knowledge" / "inbox"
     inbox.mkdir(parents=True, exist_ok=True)
     p = inbox / filename
     p.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -150,7 +150,7 @@ def _write_followup_artifact(
             .replace(microsecond=0)
             .isoformat()
             + "Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": (
                 "promote_to_skill" if kind == "skill_followup" else "promote_to_module_doc"
             ),
@@ -166,7 +166,7 @@ def _write_followup_artifact(
         "skill_followup": "skill",
         "module_doc_followup": "module-doc",
     }.get(kind, kind)
-    followups_root = ws / "knowledge" / "shared-memory" / "followups" / kind_dir
+    followups_root = ws / "knowledge" / "followups" / kind_dir
     followups_root.mkdir(parents=True, exist_ok=True)
     p = followups_root / filename
     p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -205,7 +205,7 @@ def workspace_with_curated(workspace):
     """Workspace with curated entries for index building."""
     _write_curated_entry(
         workspace,
-        "knowledge/shared-memory/workspace",
+        "knowledge/facts/workspace",
         "validation-hook.md",
         name="System Validation Hook",
         description="A validation hook that runs before every commit.",
@@ -215,7 +215,7 @@ def workspace_with_curated(workspace):
     )
     _write_curated_entry(
         workspace,
-        "knowledge/shared-memory/module/testmod",
+        "knowledge/facts/module/testmod",
         "module-entry.md",
         name="Test Module Entry",
         description="A curated module entry.",
@@ -225,7 +225,7 @@ def workspace_with_curated(workspace):
     )
     _write_curated_entry(
         workspace,
-        "knowledge/shared-memory/capability/testcap",
+        "knowledge/facts/capability/testcap",
         "capability-entry.md",
         name="Test Capability Entry",
         description="A curated capability entry.",

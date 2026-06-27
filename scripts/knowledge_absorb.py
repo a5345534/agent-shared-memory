@@ -225,14 +225,14 @@ def evidence_list(frontmatter: dict[str, Any], body: str) -> list[str]:
 
 
 def inbox_candidate_files(root: Path) -> list[Path]:
-    inbox = root / "knowledge/shared-memory/inbox"
+    inbox = root / "knowledge/inbox"
     if not inbox.exists():
         return []
     return sorted(path for path in inbox.glob("*.md") if path.name != "README.md")
 
 
 def workspace_memory_files(root: Path) -> list[Path]:
-    workspace = root / "knowledge/shared-memory/workspace"
+    workspace = root / "knowledge/facts/workspace"
     if not workspace.exists():
         return []
     return sorted(path for path in workspace.glob("*.md") if path.name not in {"README.md", "MEMORY.md"})
@@ -295,13 +295,13 @@ def compute_pressure(root: Path, thresholds: Thresholds) -> Pressure:
 def normalize_scope(scope: str) -> tuple[str, str] | None:
     scope = clean_line(scope, 120)
     if scope == "workspace":
-        return scope, "knowledge/shared-memory/workspace"
+        return scope, "knowledge/facts/workspace"
     if scope.startswith("module:"):
         name = slugify(scope.split(":", 1)[1], "module")
-        return f"module:{name}", f"knowledge/shared-memory/module/{name}"
+        return f"module:{name}", f"knowledge/facts/module/{name}"
     if scope.startswith("capability:"):
         name = slugify(scope.split(":", 1)[1], "capability")
-        return f"capability:{name}", f"knowledge/shared-memory/capability/{name}"
+        return f"capability:{name}", f"knowledge/facts/capability/{name}"
     return None
 
 
@@ -405,7 +405,7 @@ def followup_files(root: Path, kind: str) -> list[Path]:
     kind_dir = followup_dir_for_kind(kind)
     if not kind_dir:
         return []
-    followups_root = root / "knowledge/shared-memory/followups" / kind_dir
+    followups_root = root / "knowledge/followups" / kind_dir
     if not followups_root.exists():
         return []
     return sorted(path for path in followups_root.glob("*.json"))
@@ -448,7 +448,7 @@ def unique_followup_path(root: Path, kind: str, candidate_id: str) -> Path:
     kind_dir = followup_dir_for_kind(kind)
     if not kind_dir:
         raise ValueError(f"Unknown followup kind: {kind}")
-    followups_root = root / "knowledge/shared-memory/followups" / kind_dir
+    followups_root = root / "knowledge/followups" / kind_dir
     followups_root.mkdir(parents=True, exist_ok=True)
 
     path = followups_root / f"{candidate_id}.json"
@@ -645,7 +645,7 @@ def render_curated_memory(frontmatter: dict[str, Any], body: str, normalized_sco
 
 
 def index_line(name: str, description: str, file_name: str, agents: bool) -> str:
-    target = f"knowledge/shared-memory/workspace/{file_name}" if agents else file_name
+    target = f"knowledge/facts/workspace/{file_name}" if agents else file_name
     return f"- [{name}]({target}) — {description}"
 
 
@@ -672,7 +672,7 @@ def update_workspace_indexes(root: Path, destination: Path, frontmatter: dict[st
     headings = index_headings()
     heading = headings.get(section_key, headings.get(DEFAULT_INDEX_SECTION, "Shared Memory"))
 
-    memory_index = root / "knowledge/shared-memory/workspace/MEMORY.md"
+    memory_index = root / "knowledge/facts/workspace/MEMORY.md"
     if memory_index.exists():
         old = memory_index.read_text(encoding="utf-8")
         new = insert_under_heading(old, "##", heading, index_line(name, description, destination.name, False))

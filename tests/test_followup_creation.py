@@ -41,7 +41,7 @@ class TestApplyFollowupArtifact:
         )
 
         action = {
-            "candidatePath": "knowledge/shared-memory/inbox/example.md",
+            "candidatePath": "knowledge/inbox/example.md",
             "action": "promote_to_skill",
             "destination": "agent-workspace/skills/example/",
             "reason": "Looks like a reusable skill.",
@@ -60,7 +60,7 @@ class TestApplyFollowupArtifact:
         assert data["status"] == "open"
         assert data["safeToAutoApply"] is False
         assert data["handoffTo"] == "skill-creator"
-        assert data["sourceCandidate"] == "knowledge/shared-memory/inbox/example.md"
+        assert data["sourceCandidate"] == "knowledge/inbox/example.md"
         assert data["sourceAction"] == "promote_to_skill"
 
     def test_creates_module_doc_followup(self, workspace):
@@ -77,7 +77,7 @@ class TestApplyFollowupArtifact:
         )
 
         action = {
-            "candidatePath": "knowledge/shared-memory/inbox/ops-guide.md",
+            "candidatePath": "knowledge/inbox/ops-guide.md",
             "action": "promote_to_module_doc",
             "reason": "Looks like module documentation.",
             "evidence": ["evidence 1"],
@@ -106,7 +106,7 @@ class TestApplyFollowupArtifact:
         )
 
         action = {
-            "candidatePath": "knowledge/shared-memory/inbox/postcompact-memory.md",
+            "candidatePath": "knowledge/inbox/postcompact-memory.md",
             "action": "promote_to_skill",
             "reason": "Test.",
             "evidence": [],
@@ -131,7 +131,7 @@ class TestApplyFollowupArtifact:
         )
 
         action = {
-            "candidatePath": "knowledge/shared-memory/inbox/example.md",
+            "candidatePath": "knowledge/inbox/example.md",
             "action": "promote_to_skill",
             "reason": "Test.",
             "evidence": [],
@@ -159,7 +159,7 @@ class TestApplyFollowupArtifact:
             candidate_id="example-001",
         )
         action1 = {
-            "candidatePath": "knowledge/shared-memory/inbox/example.md",
+            "candidatePath": "knowledge/inbox/example.md",
             "action": "promote_to_skill",
             "reason": "First.",
             "evidence": [],
@@ -177,7 +177,7 @@ class TestApplyFollowupArtifact:
             candidate_id="example-001",
         )
         action2 = {
-            "candidatePath": "knowledge/shared-memory/inbox/other-example.md",
+            "candidatePath": "knowledge/inbox/other-example.md",
             "action": "promote_to_skill",
             "reason": "Second, colliding.",
             "evidence": [],
@@ -200,7 +200,7 @@ class TestApplyFollowupArtifact:
         )
 
         action = {
-            "candidatePath": "knowledge/shared-memory/inbox/surviving.md",
+            "candidatePath": "knowledge/inbox/surviving.md",
             "action": "promote_to_skill",
             "reason": "Test.",
             "evidence": [],
@@ -221,7 +221,7 @@ class TestApplyFollowupArtifact:
             suggested_action="promote_to_skill",
         )
         action = {
-            "candidatePath": "knowledge/shared-memory/inbox/no-skill.md",
+            "candidatePath": "knowledge/inbox/no-skill.md",
             "action": "promote_to_skill",
             "reason": "Test.",
             "evidence": [],
@@ -243,7 +243,7 @@ class TestApplyFollowupArtifact:
             suggested_action="promote_to_module_doc",
         )
         action = {
-            "candidatePath": "knowledge/shared-memory/inbox/no-mod-docs.md",
+            "candidatePath": "knowledge/inbox/no-mod-docs.md",
             "action": "promote_to_module_doc",
             "reason": "Test.",
             "evidence": [],
@@ -266,7 +266,7 @@ class TestRenderFollowupArtifact:
     def test_renders_complete_artifact(self):
         """The rendered artifact has all required fields."""
         artifact = ka.render_followup_artifact(
-            source_candidate="knowledge/shared-memory/inbox/test.md",
+            source_candidate="knowledge/inbox/test.md",
             source_action="promote_to_skill",
             frontmatter={"name": "Test", "description": "A test"},
             body="Test body",
@@ -333,7 +333,7 @@ class TestFollowupEdgeCases:
     def test_missing_source_file_returns_error(self, workspace):
         """If the source candidate file doesn't exist, an error is returned."""
         action = {
-            "candidatePath": "knowledge/shared-memory/inbox/nonexistent.md",
+            "candidatePath": "knowledge/inbox/nonexistent.md",
             "action": "promote_to_skill",
             "reason": "Test.",
         }
@@ -344,7 +344,7 @@ class TestFollowupEdgeCases:
         """If the action is not a promote action, an error is returned."""
         _write_inbox_candidate(workspace, "test.md")
         action = {
-            "candidatePath": "knowledge/shared-memory/inbox/test.md",
+            "candidatePath": "knowledge/inbox/test.md",
             "action": "retain_memory",
             "reason": "Test.",
         }
@@ -362,14 +362,14 @@ class TestFollowupEdgeCases:
         )
 
         action_skill = {
-            "candidatePath": "knowledge/shared-memory/inbox/dual.md",
+            "candidatePath": "knowledge/inbox/dual.md",
             "action": "promote_to_skill",
             "reason": "Skill promotion.",
             "evidence": [],
             "confidence": 0.5,
         }
         action_doc = {
-            "candidatePath": "knowledge/shared-memory/inbox/dual.md",
+            "candidatePath": "knowledge/inbox/dual.md",
             "action": "promote_to_module_doc",
             "reason": "Doc promotion.",
             "evidence": [],

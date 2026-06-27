@@ -39,7 +39,7 @@ class TestDoneWithoutOutputs:
             "kind": "skill_followup",
             "status": "done",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Done with no outputs",
@@ -64,7 +64,7 @@ class TestDoneWithoutOutputs:
             "kind": "skill_followup",
             "status": "done",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Done with missing outputs key",
@@ -88,7 +88,7 @@ class TestDoneWithoutOutputs:
             "kind": "skill_followup",
             "status": "done",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Done with valid outputs",
@@ -114,7 +114,7 @@ class TestDoneWithoutOutputs:
             "kind": "skill_followup",
             "status": "done",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Done with bad output entry",
@@ -159,7 +159,7 @@ class TestAging:
             "kind": "skill_followup",
             "status": "open",
             "createdAt": old_date,
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Old Open Followup",
@@ -183,7 +183,7 @@ class TestAging:
             "kind": "skill_followup",
             "status": "done",
             "createdAt": old_date,
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Old Done Followup",
@@ -208,7 +208,7 @@ class TestAging:
             "kind": "skill_followup",
             "status": "rejected",
             "createdAt": old_date,
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Rejected Followup",
@@ -232,7 +232,7 @@ class TestAging:
             "kind": "skill_followup",
             "status": "in_progress",
             "createdAt": old_date,
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "In Progress Old",
@@ -259,7 +259,7 @@ class TestMissingIndex:
     def test_missing_index_warning(self, workspace):
         """When query index doesn't exist, a warning is reported."""
         # Ensure no index exists
-        index_dir = workspace / "knowledge" / "shared-memory" / ".index"
+        index_dir = workspace / "knowledge" / ".index"
         for f in index_dir.glob("*"):
             f.unlink()
 
@@ -272,7 +272,7 @@ class TestMissingIndex:
 
     def test_missing_index_not_checked_by_default(self, workspace):
         """Without --check-query-index, missing index is not reported."""
-        index_dir = workspace / "knowledge" / "shared-memory" / ".index"
+        index_dir = workspace / "knowledge" / ".index"
         for f in index_dir.glob("*"):
             f.unlink()
 
@@ -288,16 +288,16 @@ class TestMissingIndex:
 
         # Write curated entries and build index
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "e1.md",
+            workspace, "knowledge/facts/workspace", "e1.md",
             name="E1", scope="workspace"
         )
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "e2.md",
+            workspace, "knowledge/facts/workspace", "e2.md",
             name="E2", scope="workspace"
         )
 
         kq.build_index(workspace)
-        manifest_dir = workspace / "knowledge" / "shared-memory" / ".index"
+        manifest_dir = workspace / "knowledge" / ".index"
         kq.write_manifest(
             workspace,
             manifest_dir / "memory.sqlite",
@@ -331,7 +331,7 @@ class TestFollowupContractValidation:
             # "kind" intentionally missing
             "status": "open",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Missing kind",
@@ -354,7 +354,7 @@ class TestFollowupContractValidation:
             "kind": "invalid_kind",
             "status": "open",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Bad Kind",
@@ -377,7 +377,7 @@ class TestFollowupContractValidation:
             "kind": "skill_followup",
             "status": "invalid_status",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Bad Status",
@@ -400,7 +400,7 @@ class TestFollowupContractValidation:
             "kind": "skill_followup",
             "status": "open",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "invalid_action",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Bad Action",
@@ -423,7 +423,7 @@ class TestFollowupContractValidation:
             "kind": "skill_followup",
             "status": "open",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Bad Handoff",
@@ -446,7 +446,7 @@ class TestFollowupContractValidation:
             "kind": "skill_followup",
             "status": "open",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Bad Confidence",
@@ -469,7 +469,7 @@ class TestFollowupContractValidation:
             "kind": "skill_followup",
             "status": "open",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Negative Confidence",
@@ -492,7 +492,7 @@ class TestFollowupContractValidation:
             "kind": "skill_followup",
             "status": "open",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/nonexistent.md",
+            "sourceCandidate": "knowledge/inbox/nonexistent.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Missing Source",
@@ -515,7 +515,7 @@ class TestFollowupContractValidation:
             "kind": "skill_followup",
             "status": "open",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "No Evidence",
@@ -542,7 +542,7 @@ class TestFollowupContractValidation:
             "kind": "skill_followup",
             "status": "open",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "",
             "title": "Empty Destination",
@@ -563,7 +563,7 @@ class TestFollowupContractValidation:
 
     def test_invalid_json_root_not_object(self, workspace):
         """Root JSON that is not an object produces error (no crash)."""
-        fups_dir = workspace / "knowledge" / "shared-memory" / "followups" / "skill"
+        fups_dir = workspace / "knowledge" / "followups" / "skill"
         fups_dir.mkdir(parents=True, exist_ok=True)
         (fups_dir / "array.json").write_text('["not", "an", "object"]', encoding="utf-8")
 
@@ -612,7 +612,7 @@ class TestLintResultStructure:
 
     def test_error_has_level_code_path_detail(self, workspace):
         """Each error entry has level, code, path, detail."""
-        fups_dir = workspace / "knowledge" / "shared-memory" / "followups" / "skill"
+        fups_dir = workspace / "knowledge" / "followups" / "skill"
         fups_dir.mkdir(parents=True, exist_ok=True)
         (fups_dir / "bad.json").write_text("invalid json", encoding="utf-8")
 
@@ -634,7 +634,7 @@ class TestLintResultStructure:
             "kind": "skill_followup",
             "status": "open",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Warning Test",
@@ -657,7 +657,7 @@ class TestLintResultStructure:
 
     def test_lint_exits_nonzero_on_errors(self, workspace):
         """Lint exits with code 1 when there are errors."""
-        fups_dir = workspace / "knowledge" / "shared-memory" / "followups" / "skill"
+        fups_dir = workspace / "knowledge" / "followups" / "skill"
         fups_dir.mkdir(parents=True, exist_ok=True)
         (fups_dir / "bad.json").write_text("invalid json", encoding="utf-8")
 
@@ -673,7 +673,7 @@ class TestLintResultStructure:
             "kind": "skill_followup",
             "status": "open",
             "createdAt": "2026-06-22T10:00:00Z",
-            "sourceCandidate": "knowledge/shared-memory/inbox/test.md",
+            "sourceCandidate": "knowledge/inbox/test.md",
             "sourceAction": "promote_to_skill",
             "suggestedDestination": "agent-workspace/skills/test/",
             "title": "Test",

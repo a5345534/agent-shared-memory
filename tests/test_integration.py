@@ -98,7 +98,7 @@ class TestAbsorbToFollowup:
         result = json.loads(stdout)
 
         # Check followup was created
-        followup_dir = workspace / "knowledge" / "shared-memory" / "followups" / "skill"
+        followup_dir = workspace / "knowledge" / "followups" / "skill"
         followups = list(followup_dir.glob("*.json"))
         assert len(followups) >= 1
 
@@ -140,7 +140,7 @@ class TestAbsorbToFollowup:
         assert rc == 0, f"Apply failed: {stderr}"
 
         # Check curated entry was created
-        workspace_dir = workspace / "knowledge" / "shared-memory" / "workspace"
+        workspace_dir = workspace / "knowledge" / "facts" / "workspace"
         curated_files = [f for f in workspace_dir.glob("*.md") if f.name not in ("README.md", "MEMORY.md")]
         assert len(curated_files) >= 1
 
@@ -166,28 +166,28 @@ class TestRebuildToSearch:
     def test_rebuild_index_creates_database(self, workspace):
         """rebuild-index creates memory.sqlite."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "test.md",
+            workspace, "knowledge/facts/workspace", "test.md",
             name="Test Entry", scope="workspace"
         )
 
         rc, stdout, stderr = _run_query(workspace, "rebuild-index")
         assert rc == 0, f"rebuild-index failed: {stderr}"
 
-        sqlite_path = workspace / "knowledge" / "shared-memory" / ".index" / "memory.sqlite"
+        sqlite_path = workspace / "knowledge" / ".index" / "memory.sqlite"
         assert sqlite_path.exists()
 
-        manifest_path = workspace / "knowledge" / "shared-memory" / ".index" / "manifest.json"
+        manifest_path = workspace / "knowledge" / ".index" / "manifest.json"
         assert manifest_path.exists()
 
     def test_search_returns_results(self, workspace):
         """Search returns matching entries after rebuild-index."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "hook.md",
+            workspace, "knowledge/facts/workspace", "hook.md",
             name="Validation Hook", scope="workspace",
             body="A validation hook for the CI/CD pipeline."
         )
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/module/testmod", "arch.md",
+            workspace, "knowledge/facts/module/testmod", "arch.md",
             name="Architecture Doc", scope="module:testmod",
             memory_type="architectural-invariant",
             body="All modules must validate inputs before processing."
@@ -207,7 +207,7 @@ class TestRebuildToSearch:
     def test_search_excludes_deprecated(self, workspace):
         """Search results exclude deprecated entries."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "dep.md",
+            workspace, "knowledge/facts/workspace", "dep.md",
             name="Deprecated Entry", scope="workspace",
             memory_type="deprecated",
             body="This is a deprecated validation entry."
@@ -227,11 +227,11 @@ class TestRebuildToSearch:
     def test_list_filters_by_scope(self, workspace):
         """List with --scope filter returns only matching scope entries."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "ws.md",
+            workspace, "knowledge/facts/workspace", "ws.md",
             name="WS Entry", scope="workspace"
         )
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/module/testmod", "mod.md",
+            workspace, "knowledge/facts/module/testmod", "mod.md",
             name="Module Entry", scope="module:testmod"
         )
 
@@ -246,13 +246,13 @@ class TestRebuildToSearch:
     def test_search_with_type_filter(self, workspace):
         """Search with --type filter returns only matching type entries."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "arch.md",
+            workspace, "knowledge/facts/workspace", "arch.md",
             name="Arch Entry", scope="workspace",
             memory_type="architectural-invariant",
             body="Architecture constraint entry."
         )
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "ref.md",
+            workspace, "knowledge/facts/workspace", "ref.md",
             name="Ref Entry", scope="workspace",
             memory_type="reference",
             body="Reference entry about architecture."
@@ -279,15 +279,15 @@ class TestResolveScope:
     def test_resolve_module_includes_workspace_and_module(self, workspace):
         """resolve --module X includes workspace + module:X entries."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "ws.md",
+            workspace, "knowledge/facts/workspace", "ws.md",
             name="WS Entry", scope="workspace"
         )
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/module/testmod", "mod.md",
+            workspace, "knowledge/facts/module/testmod", "mod.md",
             name="Module Entry", scope="module:testmod"
         )
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/module/other", "other.md",
+            workspace, "knowledge/facts/module/other", "other.md",
             name="Other Module", scope="module:other"
         )
 
@@ -304,11 +304,11 @@ class TestResolveScope:
     def test_resolve_capability_includes_workspace_and_capability(self, workspace):
         """resolve --capability X includes workspace + capability:X entries."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "ws.md",
+            workspace, "knowledge/facts/workspace", "ws.md",
             name="WS Entry", scope="workspace"
         )
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/capability/testcap", "cap.md",
+            workspace, "knowledge/facts/capability/testcap", "cap.md",
             name="Cap Entry", scope="capability:testcap"
         )
 
@@ -332,12 +332,12 @@ class TestInjectMarkdown:
     def test_inject_produces_markdown(self, workspace):
         """inject --format markdown produces valid Markdown context."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "ws.md",
+            workspace, "knowledge/facts/workspace", "ws.md",
             name="Workspace Memory", scope="workspace",
             body="Workspace-level shared memory about deployment."
         )
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/module/testmod", "mod.md",
+            workspace, "knowledge/facts/module/testmod", "mod.md",
             name="Module Memory", scope="module:testmod",
             body="Module testmod deploy instructions."
         )
@@ -354,7 +354,7 @@ class TestInjectMarkdown:
     def test_inject_respects_budget(self, workspace):
         """inject --budget-chars limits output size."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "large.md",
+            workspace, "knowledge/facts/workspace", "large.md",
             name="Large Entry", scope="workspace",
             body="Large body. " * 200  # ~2400 chars
         )
@@ -372,7 +372,7 @@ class TestInjectMarkdown:
     def test_inject_json_format(self, workspace):
         """inject --format json produces JSON with metadata."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "test.md",
+            workspace, "knowledge/facts/workspace", "test.md",
             name="Test", scope="workspace"
         )
 
@@ -398,7 +398,7 @@ class TestExplain:
     def test_explain_shows_score_breakdown(self, workspace):
         """explain --query shows score breakdown."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "hook.md",
+            workspace, "knowledge/facts/workspace", "hook.md",
             name="Validation Hook", scope="workspace",
             body="A validation hook for CI/CD."
         )
@@ -417,7 +417,7 @@ class TestExplain:
     def test_explain_shows_excluded(self, workspace):
         """explain --query shows excluded deprecated entries."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "dep.md",
+            workspace, "knowledge/facts/workspace", "dep.md",
             name="Old Hook", scope="workspace",
             memory_type="deprecated",
             body="An old validation hook that is deprecated."
@@ -446,7 +446,7 @@ class TestIdempotentRebuild:
     def test_rebuild_is_idempotent(self, workspace):
         """Rebuilding with same sources produces same entry count and hash."""
         _write_curated_entry(
-            workspace, "knowledge/shared-memory/workspace", "a.md",
+            workspace, "knowledge/facts/workspace", "a.md",
             name="A", scope="workspace"
         )
 
@@ -454,7 +454,7 @@ class TestIdempotentRebuild:
         assert rc1 == 0
 
         manifest1 = json.loads(
-            (workspace / "knowledge" / "shared-memory" / ".index" / "manifest.json")
+            (workspace / "knowledge" / ".index" / "manifest.json")
             .read_text(encoding="utf-8")
         )
 
@@ -463,7 +463,7 @@ class TestIdempotentRebuild:
         assert rc2 == 0
 
         manifest2 = json.loads(
-            (workspace / "knowledge" / "shared-memory" / ".index" / "manifest.json")
+            (workspace / "knowledge" / ".index" / "manifest.json")
             .read_text(encoding="utf-8")
         )
 

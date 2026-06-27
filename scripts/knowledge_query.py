@@ -77,7 +77,7 @@ def find_workspace_root(start: Path, allow_fallback: bool = False) -> Path:
     if current.is_file():
         current = current.parent
 
-    markers = ["AGENTS.md", "knowledge/shared-memory", "goal-dag-spec.json"]
+    markers = ["AGENTS.md", "knowledge/facts", "goal-dag-spec.json"]
     for candidate in [current, *current.parents]:
         for marker in markers:
             marker_path = candidate / marker
@@ -219,7 +219,7 @@ def collect_curated_entries(root: Path) -> list[MemoryEntry]:
     Skips README.md, MEMORY.md, inbox/, followups/ directories.
     """
     entries: list[MemoryEntry] = []
-    shared_memory = root / "knowledge" / "shared-memory"
+    shared_memory = root / "knowledge" / "facts"
     if not shared_memory.exists():
         return entries
 
@@ -389,7 +389,7 @@ def build_index(root: Path) -> tuple[Path, int, str]:
     """
     entries = collect_curated_entries(root)
 
-    index_dir = root / "knowledge" / "shared-memory" / ".index"
+    index_dir = root / "knowledge" / ".index"
     index_dir.mkdir(parents=True, exist_ok=True)
 
     sqlite_path = index_dir / "memory.sqlite"
@@ -494,13 +494,13 @@ def compute_content_hash(entries: list[MemoryEntry]) -> str:
 
 def write_manifest(root: Path, sqlite_path: Path, entry_count: int, content_hash: str) -> Path:
     """Write knowledge/shared-memory/.index/manifest.json."""
-    manifest_dir = root / "knowledge" / "shared-memory" / ".index"
+    manifest_dir = root / "knowledge" / ".index"
     manifest_dir.mkdir(parents=True, exist_ok=True)
     manifest = {
         "version": MANIFEST_VERSION,
         "generatedAt": now_iso(),
         "entryCount": entry_count,
-        "sourceRoot": rel(root, root / "knowledge" / "shared-memory"),
+        "sourceRoot": rel(root, root / "knowledge" / "facts"),
         "sqlitePath": rel(root, sqlite_path),
         "hash": content_hash,
     }
@@ -530,7 +530,7 @@ def cmd_rebuild_index(root: Path) -> int:
     # Only rewrite manifest if the source-derived hash changed,
     # or if no manifest exists yet.  This keeps the repository clean
     # when rebuild-index is re-run against unchanged sources.
-    manifest_dir = root / "knowledge" / "shared-memory" / ".index"
+    manifest_dir = root / "knowledge" / ".index"
     existing_manifest = manifest_dir / "manifest.json"
     skip_manifest = False
     if existing_manifest.exists():
@@ -561,7 +561,7 @@ def cmd_rebuild_index(root: Path) -> int:
 
 def cmd_list(root: Path, args: argparse.Namespace) -> int:
     """Run list subcommand with optional --scope and --type filters."""
-    sqlite_path = root / "knowledge" / "shared-memory" / ".index" / "memory.sqlite"
+    sqlite_path = root / "knowledge" / ".index" / "memory.sqlite"
     if not sqlite_path.exists():
         print("ERROR: No index found. Run 'rebuild-index' first.", file=sys.stderr)
         return 1
@@ -787,7 +787,7 @@ def read_entry_from_db(db: sqlite3.Connection, entry_id: str) -> dict[str, Any] 
 
 def cmd_search(root: Path, args: argparse.Namespace) -> int:
     """Run search subcommand: FTS5 query with boost/penalty ranking."""
-    sqlite_path = root / "knowledge" / "shared-memory" / ".index" / "memory.sqlite"
+    sqlite_path = root / "knowledge" / ".index" / "memory.sqlite"
     if not sqlite_path.exists():
         print("ERROR: No index found. Run 'rebuild-index' first.", file=sys.stderr)
         return 1
@@ -964,7 +964,7 @@ def cmd_search(root: Path, args: argparse.Namespace) -> int:
 
 def cmd_resolve(root: Path, args: argparse.Namespace) -> int:
     """Run resolve subcommand: filter entries by module/capability scope."""
-    sqlite_path = root / "knowledge" / "shared-memory" / ".index" / "memory.sqlite"
+    sqlite_path = root / "knowledge" / ".index" / "memory.sqlite"
     if not sqlite_path.exists():
         print("ERROR: No index found. Run 'rebuild-index' first.", file=sys.stderr)
         return 1
@@ -1298,7 +1298,7 @@ def render_injection_markdown(
 
 def cmd_inject(root: Path, args: argparse.Namespace) -> int:
     """Run inject subcommand: produce prompt-ready context from resolved entries."""
-    sqlite_path = root / "knowledge" / "shared-memory" / ".index" / "memory.sqlite"
+    sqlite_path = root / "knowledge" / ".index" / "memory.sqlite"
     if not sqlite_path.exists():
         print("ERROR: No index found. Run 'rebuild-index' first.", file=sys.stderr)
         return 1
@@ -1512,7 +1512,7 @@ def cmd_inject(root: Path, args: argparse.Namespace) -> int:
 
 def cmd_explain(root: Path, args: argparse.Namespace) -> int:
     """Run explain subcommand: show score breakdown and selection/exclusion reasons."""
-    sqlite_path = root / "knowledge" / "shared-memory" / ".index" / "memory.sqlite"
+    sqlite_path = root / "knowledge" / ".index" / "memory.sqlite"
     if not sqlite_path.exists():
         print("ERROR: No index found. Run 'rebuild-index' first.", file=sys.stderr)
         return 1

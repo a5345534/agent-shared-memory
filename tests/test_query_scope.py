@@ -19,7 +19,7 @@ def _index_with_scoped_entries(db_path):
     entries = [
         {
             "id": "ws001",
-            "path": "knowledge/shared-memory/workspace/ws1.md",
+            "path": "knowledge/facts/workspace/ws1.md",
             "scope": "workspace", "scope_type": "workspace", "scope_name": "",
             "type": "reference", "name": "Workspace Entry 1",
             "description": "A workspace-scoped entry.",
@@ -29,7 +29,7 @@ def _index_with_scoped_entries(db_path):
         },
         {
             "id": "mod001",
-            "path": "knowledge/shared-memory/module/workflow/entry.md",
+            "path": "knowledge/facts/module/workflow/entry.md",
             "scope": "module:workflow", "scope_type": "module", "scope_name": "workflow",
             "type": "reference", "name": "Module Workflow Entry",
             "description": "A module:workflow entry.",
@@ -39,7 +39,7 @@ def _index_with_scoped_entries(db_path):
         },
         {
             "id": "mod002",
-            "path": "knowledge/shared-memory/module/other/entry.md",
+            "path": "knowledge/facts/module/other/entry.md",
             "scope": "module:other", "scope_type": "module", "scope_name": "other",
             "type": "reference", "name": "Other Module Entry",
             "description": "A module:other entry.",
@@ -49,7 +49,7 @@ def _index_with_scoped_entries(db_path):
         },
         {
             "id": "cap001",
-            "path": "knowledge/shared-memory/capability/auth/entry.md",
+            "path": "knowledge/facts/capability/auth/entry.md",
             "scope": "capability:auth", "scope_type": "capability", "scope_name": "auth",
             "type": "reference", "name": "Auth Capability Entry",
             "description": "A capability:auth entry.",
