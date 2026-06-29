@@ -187,6 +187,8 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
+    ctx.ui.notify("Extracting shared knowledge from session…", "info");
+
     const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
     if (!auth.ok) {
       console.warn("[sk-lifecycle] Auth failed for", model.id);
@@ -196,6 +198,8 @@ export default function (pi: ExtensionAPI) {
       console.warn("[sk-lifecycle] No credentials for", model.id);
       return;
     }
+
+    ctx.ui.setStatus("sk-producer", "Reviewing session…");
 
     try {
       const systemPrompt = existsSync(PROMPT_FILE)
@@ -224,7 +228,10 @@ export default function (pi: ExtensionAPI) {
 
       let candidates: Record<string, unknown>[] = [];
       try { const p = JSON.parse(raw); candidates = Array.isArray(p.candidates) ? p.candidates : []; } catch {}
-      if (candidates.length === 0) return;
+      if (candidates.length === 0) {
+        ctx.ui.notify("Shared knowledge: no durable facts found", "info");
+        return;
+      }
 
       const inbox = join(ctx.cwd, "knowledge", "inbox");
       mkdirSync(inbox, { recursive: true });
@@ -241,9 +248,12 @@ export default function (pi: ExtensionAPI) {
         written++;
       }
 
-      console.log("[sk-lifecycle] Written " + written + " candidate(s)");
+      ctx.ui.notify("Shared knowledge: " + written + " candidate(s) written to inbox", "info");
     } catch (err) {
       console.error("[sk-lifecycle] Producer failed:", err);
+      ctx.ui.notify("Shared knowledge extraction failed", "error");
+    } finally {
+      ctx.ui.setStatus("sk-producer", undefined);
     }
   });
 
