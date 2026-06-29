@@ -174,12 +174,19 @@ export default function (pi: ExtensionAPI) {{
       const activeModel = ctx.model;
       if (activeModel) {{
         const auth = await ctx.modelRegistry.getApiKeyAndHeaders(activeModel);
-        if (auth.ok && auth.apiKey) {{
-          childEnv["SHARED_KNOWLEDGE_LLM_API_KEY"] = auth.apiKey;
+        if (auth.ok) {{
+          // Inject API key for OpenAI-compatible Bearer auth
+          if (auth.apiKey) {{
+            childEnv["SHARED_KNOWLEDGE_LLM_API_KEY"] = auth.apiKey;
+          }}
           childEnv["SHARED_KNOWLEDGE_LLM_MODEL"] = activeModel.id;
           // Inject base URL if the model has one (covers non-OpenAI endpoints)
           if (activeModel.baseUrl) {{
             childEnv["SHARED_KNOWLEDGE_LLM_BASE_URL"] = activeModel.baseUrl;
+          }}
+          // Inject full headers from registry (covers x-api-key, custom auth, etc.)
+          if (auth.headers && Object.keys(auth.headers).length > 0) {{
+            childEnv["SHARED_KNOWLEDGE_LLM_HEADERS"] = JSON.stringify(auth.headers);
           }}
         }}
       }}

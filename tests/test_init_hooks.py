@@ -148,6 +148,8 @@ class TestPiLifecycleAdapter:
         assert "activeModel.baseUrl" in content, "Extension should inject model base URL"
         assert "getApiKeyAndHeaders" in content, "Extension should get API key from registry"
         assert "SHARED_KNOWLEDGE_LLM_API_KEY" in content, "Extension should inject API key env var"
+        assert "SHARED_KNOWLEDGE_LLM_HEADERS" in content, "Extension should inject auth headers"
+        assert "JSON.stringify(auth.headers)" in content, "Extension should serialize headers as JSON"
         assert "childEnv" in content, "Extension should build child environment"
         # Verify braces are balanced in the generated TypeScript
         assert content.count("{") == content.count("}"), "TypeScript braces must be balanced"

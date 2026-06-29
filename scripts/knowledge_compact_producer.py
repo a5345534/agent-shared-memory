@@ -39,6 +39,7 @@ ENV_API_KEY_FALLBACK = "OPENAI_API_KEY"
 ENV_BASE_URL = "SHARED_KNOWLEDGE_LLM_BASE_URL"
 ENV_MODEL = "SHARED_KNOWLEDGE_LLM_MODEL"
 ENV_ENABLED = "SHARED_KNOWLEDGE_PRODUCER_ENABLED"
+ENV_HEADERS = "SHARED_KNOWLEDGE_LLM_HEADERS"
 ENV_MAX_CONTEXT_TOKENS = "SHARED_KNOWLEDGE_MAX_CONTEXT_TOKENS"
 
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
@@ -73,6 +74,19 @@ def now_iso() -> str:
 
 def timestamp_slug() -> str:
     return dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+
+
+def _parse_headers_env(raw: str) -> dict[str, str] | None:
+    """Parse SHARED_KNOWLEDGE_LLM_HEADERS JSON into a dict."""
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            return {str(k): str(v) for k, v in data.items() if v is not None}
+    except json.JSONDecodeError:
+        pass
+    return None
 
 
 def slugify(value: str, fallback: str = "candidate") -> str:
@@ -121,6 +135,7 @@ def load_config() -> dict[str, Any]:
         "model": env_str(ENV_MODEL, DEFAULT_MODEL),
         "enabled": env_str(ENV_ENABLED, "1") != "0",
         "max_context_tokens": env_int(ENV_MAX_CONTEXT_TOKENS, DEFAULT_MAX_CONTEXT_TOKENS),
+        "headers": _parse_headers_env(env_str(ENV_HEADERS)),
     }
 
 
@@ -181,13 +196,24 @@ def call_llm(config: dict[str, Any], prompt: str) -> dict[str, Any] | None:
         "max_tokens": 4096,
     }
 
+    # Build request headers
+    # Start with Content-Type, then layer custom headers from auth.headers
+    headers: dict[str, str] = {
+        "Content-Type": "application/json",
+    }
+    custom_headers_raw = config.get("headers", {}) or {}
+    if isinstance(custom_headers_raw, dict):
+        for k, v in custom_headers_raw.items():
+            if v is not None:
+                headers[str(k)] = str(v)
+    # Only add Bearer auth if no custom auth header was provided
+    if "Authorization" not in headers and config.get("api_key"):
+        headers["Authorization"] = f"Bearer {config['api_key']}"
+
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {config['api_key']}",
-            "Content-Type": "application/json",
-        },
+        headers=headers,
         method="POST",
     )
 
