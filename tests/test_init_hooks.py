@@ -144,6 +144,12 @@ class TestPiLifecycleAdapter:
         assert "knowledge_compact_producer" in content
         assert "knowledge_absorb" in content
         assert "detached" in content
+        assert "modelRegistry" in content, "Extension should use Pi model registry"
+        assert "getApiKeyAndHeaders" in content, "Extension should get API key from registry"
+        assert "SHARED_KNOWLEDGE_LLM_API_KEY" in content, "Extension should inject API key env var"
+        assert "childEnv" in content, "Extension should build child environment"
+        # Verify braces are balanced in the generated TypeScript
+        assert content.count("{") == content.count("}"), "TypeScript braces must be balanced"
 
     def test_install_skipped_when_no_pi(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Adapter returns 'skipped' when ~/.pi/ does not exist."""
