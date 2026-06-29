@@ -141,16 +141,21 @@ class TestPiLifecycleAdapter:
         content = ext_path.read_text(encoding="utf-8")
         assert "session_before_compact" in content
         assert "session_compact" in content
-        assert "knowledge_compact_producer" in content
         assert "knowledge_absorb" in content
         assert "detached" in content
+        # Producer calls LLM via Pi's complete() — no Python subprocess
+        assert "complete" in content, "Extension should call Pi's complete()"
+        assert 'from "@earendil-works/pi-ai/compat"' in content
+        assert "serializeConversation" in content
+        assert "convertToLlm" in content
         assert "ctx.model" in content, "Extension should use the active conversation model"
-        assert "activeModel.baseUrl" in content, "Extension should inject model base URL"
         assert "getApiKeyAndHeaders" in content, "Extension should get API key from registry"
-        assert "SHARED_KNOWLEDGE_LLM_API_KEY" in content, "Extension should inject API key env var"
-        assert "SHARED_KNOWLEDGE_LLM_HEADERS" in content, "Extension should inject auth headers"
-        assert "JSON.stringify(auth.headers)" in content, "Extension should serialize headers as JSON"
-        assert "childEnv" in content, "Extension should build child environment"
+        assert "validateCandidate" in content, "Extension should validate candidates in TS"
+        assert "candidateExists" in content, "Extension should deduplicate candidates"
+        # No env-var injection or Python subprocess for the producer
+        assert "SHARED_KNOWLEDGE_LLM_API_KEY" not in content, "Producer no longer injects env vars"
+        assert "childEnv" not in content, "Producer no longer builds child environment"
+        assert "knowledge_compact_producer.py" not in content, "Producer no longer spawns Python"
         # Verify braces are balanced in the generated TypeScript
         assert content.count("{") == content.count("}"), "TypeScript braces must be balanced"
 

@@ -2,14 +2,17 @@
 """Unified Pi lifecycle hook adapter.
 
 Installs a Pi TypeScript extension that handles both pre-compact candidate
-generation (producer) and post-compact inbox absorption (absorber) in a single
-extension, running both via detached spawn to avoid blocking the session.
+generation (producer) and post-compact inbox absorption (absorber).
+
+The producer calls the LLM directly through Pi's ``complete()`` provider
+infrastructure (``@earendil-works/pi-ai/compat``) — no Python subprocess
+needed.  The absorber spawns ``knowledge_absorb.py hook`` as a detached
+background process.
 
 Replaces the legacy ``pi.py`` which installed a post-compact shell hook only.
 """
 from __future__ import annotations
 
-import shutil
 import stat
 from pathlib import Path
 from typing import Any
@@ -74,19 +77,16 @@ def install(root: Path, scope: str = "workspace", legacy_hook: bool = False) -> 
 
 
 def _extension_dir(root: Path, scope: str) -> Path:
-    """Return the Pi extension directory for the given scope."""
     if scope == "global":
         return Path.home() / ".pi" / "agent" / "extensions"
     return root.resolve() / ".pi" / "extensions"
 
 
 def _install_extension(root: Path, scope: str) -> dict[str, Any]:
-    """Install or update the shared-knowledge-lifecycle.ts extension."""
     ext_dir = _extension_dir(root, scope)
     ext_path = ext_dir / "shared-knowledge-lifecycle.ts"
     content = _extension_script(root)
 
-    # Check if already installed with identical content
     if ext_path.is_file() and ext_path.read_text(encoding="utf-8").strip() == content.strip():
         return {
             "status": "skipped",
@@ -117,156 +117,215 @@ def _install_extension(root: Path, scope: str) -> dict[str, Any]:
 def _extension_script(root: Path) -> str:
     """Generate the TypeScript extension source code.
 
-    The extension uses Pi's ``modelRegistry`` to look up the configured model
-    and API key, injecting them as environment variables so the Python
-    producer script does not need separate configuration.
+    The ``session_before_compact`` handler calls the LLM directly via Pi's
+    ``complete()`` (from ``@earendil-works/pi-ai/compat``), using the active
+    conversation model so all auth, headers, and base URL are handled by Pi.
+    Candidates are validated and written to ``knowledge/inbox/`` in-process.
+
+    The ``session_compact`` handler spawns ``knowledge_absorb.py hook``
+    (detached) for the absorption stage.
     """
     scripts_dir = root.resolve() / "shared-knowledge" / "scripts"
-    # Use f-string with doubled braces {{ }} for literal braces in TS output
+    prompts_dir = root.resolve() / "shared-knowledge" / "prompts"
     pd = str(scripts_dir)
-    return f'''\
+    pp = str(prompts_dir)
+    return f"""\
 /**
  * Shared Knowledge Lifecycle Extension
  *
- * Handles two Pi lifecycle events:
- *   1. session_before_compact -> run candidate producer (detached)
+ * Lifecycle:
+ *   1. session_before_compact -> call LLM via Pi's provider, write inbox
  *   2. session_compact       -> run inbox absorber (detached)
- *
- * Both use `child_process.spawn` with `detached: true` + `.unref()` so they
- * do NOT block Pi's session or event loop.
- *
- * The producer stage looks up the configured model via Pi's modelRegistry
- * and injects its API key / model id as environment variables.  This lets
- * users configure their LLM once in Pi and have the producer use it without
- * duplicating env vars.
  *
  * Installed by: shared-knowledge/scripts/hooks/pi_lifecycle.py
  */
+import {{ complete }} from "@earendil-works/pi-ai/compat";
+import {{
+  serializeConversation,
+  convertToLlm,
+}} from "@earendil-works/pi-coding-agent";
 import {{ spawn }} from "node:child_process";
-import {{ writeFileSync, unlinkSync }} from "node:fs";
+import {{ readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync }} from "node:fs";
 import {{ join }} from "node:path";
 import type {{ ExtensionAPI }} from "@earendil-works/pi-coding-agent";
 
-const PRODUCER_SCRIPT = "{pd}/knowledge_compact_producer.py";
+const PROMPT_FILE = "{pp}/compact-review.md";
 const ABSORBER_SCRIPT = "{pd}/knowledge_absorb.py";
-const PRODUCER_TIMEOUT_MS = 120_000;
 const ABSORBER_TIMEOUT_MS = 60_000;
 
+// ---------------------------------------------------------------------------
+// Candidate helpers (mirror knowledge_compact_producer logic)
+// ---------------------------------------------------------------------------
+const VALID_MEMORY_TYPES = new Set([
+  "architectural-invariant", "reference", "project", "feedback",
+]);
+const VALID_SCOPE_RE = /^(workspace|module:[a-z0-9][a-z0-9-]*|capability:[a-z0-9][a-z0-9-]*)$/;
+const SLUG_RE = /[^a-z0-9]+/g;
+
+function slugify(value: string, fallback = "candidate"): string {{
+  return value.toLowerCase()
+    .replace(/\\.md$/, "")
+    .replace(SLUG_RE, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || fallback;
+}}
+
+function validateCandidate(c: Record<string, unknown>): string[] {{
+  const e: string[] = [];
+  if (!String(c.name ?? "").trim()) e.push("missing name");
+  if (!String(c.description ?? "").trim()) e.push("missing description");
+  const t = String(c.type ?? "").trim();
+  if (!VALID_MEMORY_TYPES.has(t)) e.push("invalid type: " + t);
+  if (!VALID_SCOPE_RE.test(String(c.suggested_scope ?? "").trim())) e.push("invalid suggested_scope");
+  if (String(c.body ?? "").trim().length < 20) e.push("body too short (<20 chars)");
+  if (!String(c.reason ?? "").trim()) e.push("missing reason");
+  if (!String(c.candidate_id ?? "").trim()) e.push("missing candidate_id");
+  return e;
+}}
+
+function renderCandidate(c: Record<string, unknown>): string {{
+  const today = new Date().toISOString().slice(0, 10);
+  const ev = Array.isArray(c.evidence) ? c.evidence.map((x: unknown) => String(x).trim()).filter(Boolean) : [];
+  const esc = (v: unknown) => JSON.stringify(String(v ?? "").replace(/\\n/g, " ").trim());
+  let md = `---\\n`;
+  md += `name: ${{esc(c.name)}}\\n`;
+  md += `description: ${{esc(c.description)}}\\n`;
+  md += `type: ${{String(c.type ?? "feedback").trim()}}\\n`;
+  md += `suggested_action: retain_memory\\n`;
+  md += `suggested_scope: ${{String(c.suggested_scope ?? "workspace").trim()}}\\n`;
+  md += `candidate_id: ${{slugify(String(c.candidate_id ?? ""), "candidate")}}\\n`;
+  md += `captured_at: ${{today}}\\n`;
+  md += `source: agent:compact-producer\\n`;
+  md += `reason: ${{esc(c.reason)}}\\n`;
+  md += `---\\n\\n`;
+  md += String(c.body ?? "").trim() + "\\n";
+  if (ev.length > 0) {{
+    md += `\\n## Evidence\\n\\n`;
+    for (const x of ev) md += `- ${{x}}\\n`;
+  }}
+  md += `\\n`;
+  return md;
+}}
+
+function candidateExists(inboxDir: string, cid: string): boolean {{
+  if (!existsSync(inboxDir)) return false;
+  for (const f of readdirSync(inboxDir)) {{
+    if (!f.endsWith(".md") || f === "README.md") continue;
+    const text = readFileSync(join(inboxDir, f), "utf-8");
+    const m = text.match(/^---\\n([\\s\\S]*?)\\n---/);
+    if (!m) continue;
+    for (const line of m[1].split("\\n")) {{
+      if (line.startsWith("candidate_id:")) {{
+        const id = line.split(":").slice(1).join(":").trim().replace(/^"|"$/g, "");
+        if (id === cid) return true;
+      }}
+    }}
+  }}
+  return false;
+}}
+
+// ---------------------------------------------------------------------------
+// Extension entry point
+// ---------------------------------------------------------------------------
 export default function (pi: ExtensionAPI) {{
   // -----------------------------------------------------------------------
-  // Producer stage: generate inbox candidates before compaction
+  // Producer: call LLM via Pi provider, write candidates to inbox
   // -----------------------------------------------------------------------
   pi.on("session_before_compact", async (event, ctx) => {{
-    const tempFile = join(ctx.cwd, ".sk-producer-context.jsonl");
-    try {{
-      // Serialize session context
-      const contextJson = JSON.stringify(event.preparation?.messagesToSummarize ?? []);
-      writeFileSync(tempFile, contextJson, "utf-8");
+    const entries = event.preparation?.messagesToSummarize ?? [];
+    if (entries.length === 0) return;
 
-      // --- Build environment: layer Pi's active model on top of process env ---
-      const childEnv: Record<string, string | undefined> = {{
-        ...(process.env as Record<string, string | undefined>),
-      }};
-
-      // Use the currently active conversation model to get API key,
-      // model id, and base URL — no need for the user to duplicate
-      // env vars that Pi already knows about.
-      const activeModel = ctx.model;
-      if (activeModel) {{
-        const auth = await ctx.modelRegistry.getApiKeyAndHeaders(activeModel);
-        if (auth.ok) {{
-          // Inject API key for OpenAI-compatible Bearer auth
-          if (auth.apiKey) {{
-            childEnv["SHARED_KNOWLEDGE_LLM_API_KEY"] = auth.apiKey;
-          }}
-          childEnv["SHARED_KNOWLEDGE_LLM_MODEL"] = activeModel.id;
-          // Inject base URL if the model has one (covers non-OpenAI endpoints)
-          if (activeModel.baseUrl) {{
-            childEnv["SHARED_KNOWLEDGE_LLM_BASE_URL"] = activeModel.baseUrl;
-          }}
-          // Inject full headers from registry (covers x-api-key, custom auth, etc.)
-          if (auth.headers && Object.keys(auth.headers).length > 0) {{
-            childEnv["SHARED_KNOWLEDGE_LLM_HEADERS"] = JSON.stringify(auth.headers);
-          }}
-        }}
-      }}
-      // If ctx.model is unavailable (should not happen in normal sessions),
-      // fall back to whatever env vars the user already set
-      // (SHARED_KNOWLEDGE_LLM_API_KEY or OPENAI_API_KEY).
-
-      // --- Spawn producer in detached background process ---
-      const child = spawn(
-        "python3",
-        [
-          PRODUCER_SCRIPT,
-          "--root", ctx.cwd,
-          "produce-stdin",
-        ],
-        {{
-          cwd: ctx.cwd,
-          detached: true,
-          stdio: ["pipe", "ignore", "pipe"],
-          timeout: PRODUCER_TIMEOUT_MS,
-          env: childEnv as NodeJS.ProcessEnv,
-        }}
-      );
-
-      // Pipe context via stdin, then disconnect
-      if (child.stdin) {{
-        child.stdin.end(contextJson);
-      }}
-      child.unref();
-
-      // Clean up temp file after a short delay
-      setTimeout(() => {{
-        try {{ unlinkSync(tempFile); }} catch {{ /* ignore */ }}
-      }}, 5_000);
-
-    }} catch (err) {{
-      console.error("[shared-knowledge-lifecycle] Producer failed:", err);
-      try {{ unlinkSync(tempFile); }} catch {{ /* ignore */ }}
+    const model = ctx.model;
+    if (!model) {{
+      console.warn("[sk-lifecycle] No active model, skipping producer");
+      return;
     }}
-    // Return undefined -> let default compaction proceed
+
+    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+    if (!auth.ok || !auth.apiKey) {{
+      console.warn("[sk-lifecycle] No API key for", model.id);
+      return;
+    }}
+
+    try {{
+      // Read review prompt
+      const systemPrompt = existsSync(PROMPT_FILE)
+        ? readFileSync(PROMPT_FILE, "utf-8")
+        : "Extract durable shared-knowledge candidates. Return JSON with a candidates array.";
+
+      // Serialize conversation to readable text
+      const text = serializeConversation(convertToLlm(entries));
+      const userMsg = `Review this session and extract durable shared-knowledge candidates.\\n\\n${{text}}\\n\\nFollow these instructions:\\n\\n${{systemPrompt}}`;
+
+      const response = await complete(model, {{
+        messages: [{{ role: "user" as const, content: [{{
+          type: "text" as const,
+          text: userMsg,
+        }}] }}],
+      }}, {{
+        apiKey: auth.apiKey,
+        headers: auth.headers,
+        maxTokens: 4096,
+        signal: ctx.signal,
+      }});
+
+      const raw = response.content
+        .filter((c): c is {{ type: "text"; text: string }} => c.type === "text")
+        .map((c) => c.text).join("\\n")
+        .replace(/^```(?:json)?\\\\n?/i, "")
+        .replace(/\\\\n?```\\\\s*$/, "")
+        .trim();
+
+      let candidates: Record<string, unknown>[] = [];
+      try {{ const p = JSON.parse(raw); candidates = Array.isArray(p.candidates) ? p.candidates : []; }} catch {{}};
+      if (candidates.length === 0) return;
+
+      const inbox = join(ctx.cwd, "knowledge", "inbox");
+      mkdirSync(inbox, {{ recursive: true }});
+      const today = new Date().toISOString().slice(0, 10);
+      let written = 0;
+
+      for (const c of candidates) {{
+        const errs = validateCandidate(c);
+        if (errs.length > 0) {{ console.warn("[sk-lifecycle] skip:", errs.join("; ")); continue; }}
+        const cid = String(c.candidate_id ?? "").trim();
+        if (candidateExists(inbox, cid)) continue;
+        const dest = join(inbox, `${{today}}-${{slugify(cid)}}.md`);
+        writeFileSync(dest, renderCandidate(c), "utf-8");
+        written++;
+      }}
+
+      console.log(`[sk-lifecycle] Written ${{written}} candidate(s)`);
+    }} catch (err) {{
+      console.error("[sk-lifecycle] Producer failed:", err);
+    }}
+    // Return undefined => let default compaction proceed
   }});
 
   // -----------------------------------------------------------------------
-  // Absorber stage: absorb inbox candidates after compaction
+  // Absorber: spawn knowledge_absorb.py hook (detached)
   // -----------------------------------------------------------------------
   pi.on("session_compact", async (_event, ctx) => {{
     try {{
-      const child = spawn(
-        "python3",
-        [
-          ABSORBER_SCRIPT,
-          "--root", ctx.cwd,
-          "hook",
-          "--format", "json",
-        ],
-        {{
-          cwd: ctx.cwd,
-          detached: true,
-          stdio: "ignore",
-          timeout: ABSORBER_TIMEOUT_MS,
-        }}
-      );
+      const child = spawn("python3", [
+        ABSORBER_SCRIPT, "--root", ctx.cwd, "hook", "--format", "json",
+      ], {{ cwd: ctx.cwd, detached: true, stdio: "ignore", timeout: ABSORBER_TIMEOUT_MS }});
       child.unref();
     }} catch (err) {{
-      console.error("[shared-knowledge-lifecycle] Absorber failed:", err);
+      console.error("[sk-lifecycle] Absorber failed:", err);
     }}
   }});
 }};
-'''
+"""
 
 
 def _legacy_hook_dir(root: Path, scope: str) -> Path:
-    """Return the Pi hooks directory for the given scope."""
     if scope == "global":
         return Path.home() / ".pi" / "hooks"
     return root.resolve() / ".pi" / "hooks"
 
 
 def _install_legacy_hook(root: Path, scope: str) -> dict[str, Any]:
-    """Install the legacy post-compact shell hook (deprecated)."""
     hooks_dir = _legacy_hook_dir(root, scope) / "post-compact"
     hook_path = hooks_dir / "shared-knowledge-absorb.sh"
     root_path = root.resolve()
@@ -281,24 +340,12 @@ python3 "{absorb}" hook
 """
 
     if hook_path.is_file() and hook_path.read_text(encoding="utf-8").strip() == content.strip():
-        return {
-            "status": "skipped",
-            "message": f"Legacy post-compact hook already installed: {hook_path}",
-            "path": str(hook_path),
-        }
+        return {"status": "skipped", "message": f"Legacy hook already installed: {hook_path}", "path": str(hook_path)}
 
     try:
         hooks_dir.mkdir(parents=True, exist_ok=True)
         hook_path.write_text(content, encoding="utf-8")
         hook_path.chmod(hook_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-        return {
-            "status": "ok",
-            "message": f"Legacy post-compact hook installed: {hook_path}",
-            "path": str(hook_path),
-        }
+        return {"status": "ok", "message": f"Legacy hook installed: {hook_path}", "path": str(hook_path)}
     except (OSError, PermissionError) as exc:
-        return {
-            "status": "failed",
-            "message": f"Failed to install legacy hook: {exc}",
-            "path": str(hook_path) if hook_path.exists() else None,
-        }
+        return {"status": "failed", "message": f"Failed to install legacy hook: {exc}", "path": str(hook_path) if hook_path.exists() else None}
