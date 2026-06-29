@@ -8,8 +8,6 @@ The producer calls the LLM directly through Pi's ``complete()`` provider
 infrastructure (``@earendil-works/pi-ai/compat``) — no Python subprocess
 needed.  The absorber spawns ``knowledge_absorb.py hook`` as a detached
 background process.
-
-Replaces the legacy ``pi.py`` which installed a post-compact shell hook only.
 """
 from __future__ import annotations
 
@@ -24,12 +22,10 @@ def install(root: Path, scope: str = "workspace", legacy_hook: bool = False) -> 
     pi_dir = Path.home() / ".pi"
     if not pi_dir.is_dir():
         return {"status": "skipped", "message": "Pi harness not detected (~/.pi/ not found).", "path": None}
-
     results: list[dict[str, Any]] = []
     results.append(_install_extension(root, scope))
     if legacy_hook:
         results.append(_install_legacy_hook(root, scope))
-
     errors = [r for r in results if r["status"] == "failed"]
     if errors:
         return {"status": "failed", "message": "; ".join(r["message"] for r in errors), "path": results[0].get("path"), "results": results}
@@ -60,23 +56,10 @@ def _install_extension(root: Path, scope: str) -> dict[str, Any]:
 
 
 def _extension_script(root: Path) -> str:
-    """Generate the TypeScript extension source code.
-
-    The ``session_before_compact`` handler calls the LLM directly via Pi's
-    ``complete()`` (from ``@earendil-works/pi-ai/compat``), using the active
-    conversation model so all auth, headers, and base URL are handled by Pi.
-    Candidates are validated and written to ``knowledge/inbox/`` in-process.
-
-    The ``session_compact`` handler spawns ``knowledge_absorb.py hook``
-    (detached) for the absorption stage.
-    """
+    """Generate the TypeScript extension source code."""
     scripts_dir = root.resolve() / "shared-knowledge" / "scripts"
     prompts_dir = root.resolve() / "shared-knowledge" / "prompts"
-    pd = str(scripts_dir)
-    pp = str(prompts_dir)
-    # Build the template step by step to avoid f-string escaping nightmares.
-    lines = []
-    lines.append(r"""/**
+    template = r"""/**
  * Shared Knowledge Lifecycle Extension
  *
  * Lifecycle:
@@ -95,8 +78,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-const PROMPT_FILE = \"""" + pp + r"""/compact-review.md";
-const ABSORBER_SCRIPT = \"""" + pd + r"""/knowledge_absorb.py";
+const PROMPT_FILE = "__PROMPTS_DIR__/compact-review.md";
+const ABSORBER_SCRIPT = "__SCRIPTS_DIR__/knowledge_absorb.py";
 const ABSORBER_TIMEOUT_MS = 60_000;
 
 // ---------------------------------------------------------------------------
@@ -141,6 +124,7 @@ function renderCandidate(c: Record<string, unknown>): string {
   md += "suggested_scope: " + String(c.suggested_scope ?? "workspace").trim() + "\n";
   md += "candidate_id: " + slugify(String(c.candidate_id ?? ""), "candidate") + "\n";
   md += "captured_at: " + today + "\n";
+  md += "capture_source: agent:compact-producer\n";
   md += "source: agent:compact-producer\n";
   md += "reason: " + esc(c.reason) + "\n";
   md += "---\n\n";
@@ -187,7 +171,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    ctx.ui.notify("Extracting shared knowledge from session…", "info");
+    ctx.ui.notify("Extracting shared knowledge from session\u2026", "info");
 
     const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
     if (!auth.ok) {
@@ -199,7 +183,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    ctx.ui.setStatus("sk-producer", "Reviewing session…");
+    ctx.ui.setStatus("sk-producer", "Reviewing session\u2026");
 
     try {
       const systemPrompt = existsSync(PROMPT_FILE)
@@ -207,8 +191,8 @@ export default function (pi: ExtensionAPI) {
         : "Extract durable shared-knowledge candidates. Return JSON with a candidates array.";
 
       const text = serializeConversation(convertToLlm(entries));
-      const userMsg = "Review this session and extract durable shared-knowledge candidates.\\n\\n"
-        + text + "\\n\\nFollow these instructions:\\n\\n" + systemPrompt;
+      const userMsg = "Review this session and extract durable shared-knowledge candidates.\n\n"
+        + text + "\n\nFollow these instructions:\n\n" + systemPrompt;
 
       const response = await complete(model, {
         messages: [{ role: "user" as const, content: [{ type: "text" as const, text: userMsg }] }],
@@ -221,7 +205,7 @@ export default function (pi: ExtensionAPI) {
 
       const raw = response.content
         .filter((c): c is { type: "text"; text: string } => c.type === "text")
-        .map((c) => c.text).join("\\n")
+        .map((c) => c.text).join("\n")
         .replace(/^```(?:json)?\n?/i, "")
         .replace(/\n?```\s*$/, "")
         .trim();
@@ -270,8 +254,12 @@ export default function (pi: ExtensionAPI) {
       console.error("[sk-lifecycle] Absorber failed:", err);
     }
   });
-};""")
-    return "\n".join(lines)
+};
+"""
+    # Replace path placeholders with actual resolved paths (no escaping issues)
+    result = template.replace("__PROMPTS_DIR__", str(prompts_dir))
+    result = result.replace("__SCRIPTS_DIR__", str(scripts_dir))
+    return result
 
 
 def _legacy_hook_dir(root: Path, scope: str) -> Path:

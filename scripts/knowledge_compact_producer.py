@@ -337,6 +337,7 @@ def render_candidate(candidate: dict[str, Any]) -> str:
         f"suggested_scope: {scope}",
         f"candidate_id: {candidate_id}",
         f"captured_at: {dt.date.today().isoformat()}",
+        f"capture_source: agent:compact-producer",
         f"source: agent:compact-producer",
         f"reason: {format_frontmatter_value(reason)}",
         "---",
