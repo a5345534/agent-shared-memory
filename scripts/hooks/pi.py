@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Pi harness hook adapter.
+"""DEPRECATED Pi harness hook adapter.
 
-Detects Pi via ~/.pi/ dir and installs a post-compact hook calling
-knowledge_absorb.py hook. The default install scope is workspace-local;
-global installation under ~/.pi is opt-in.
+Use ``hooks.pi_lifecycle`` instead, which installs a unified TypeScript
+extension for both producer (candidate generation) and absorber (inbox
+absorption).
+
+This module is kept for backward compatibility via ``init --legacy-hook``
+and will be removed in a future release.
 """
 from __future__ import annotations
 

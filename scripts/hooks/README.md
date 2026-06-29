@@ -39,20 +39,40 @@ order:
 
 ## Available Adapters
 
-### Pi (`pi.py`)
+### Pi (`pi_lifecycle.py`) — Preferred
 
 Detects [Pi agent harness](https://github.com/earendil-works/pi-coding-agent)
-via `~/.pi/`. By default, `knowledge init` installs a workspace-local
-post-compact hook at
-`<workspace>/.pi/hooks/post-compact/shared-knowledge-absorb.sh`.
+via `~/.pi/`. Installs a unified TypeScript extension at
+`<workspace>/.pi/extensions/shared-knowledge-lifecycle.ts` that handles both:
 
-Global Pi hooks are opt-in:
+- **Producer** (via `session_before_compact`): Runs
+  `knowledge_compact_producer.py` to generate session-derived inbox
+  candidates before compaction.
+- **Absorber** (via `session_compact`): Runs `knowledge_absorb.py hook` to
+  absorb inbox candidates after compaction.
+
+Both stages run via `child_process.spawn()` with `detached: true` +
+`.unref()` to avoid blocking Pi's session.
+
+Global Pi scope is opt-in:
 
 ```bash
 python3 shared-knowledge/scripts/knowledge_query.py --root . init --hook-scope global
 ```
 
-That writes to `~/.pi/hooks/post-compact/shared-knowledge-absorb.sh`.
+The legacy post-compact shell hook can be installed alongside via:
+
+```bash
+python3 shared-knowledge/scripts/knowledge_query.py --root . init --legacy-hook
+```
+
+### Pi (`pi.py`) — DEPRECATED
+
+Legacy adapter that installs a post-compact shell hook at
+`<workspace>/.pi/hooks/post-compact/shared-knowledge-absorb.sh`.
+
+Replaced by `pi_lifecycle.py`. Kept for backward compatibility via
+`init --legacy-hook` and will be removed in a future release.
 
 ### OpenCode (`opencode.py`)
 

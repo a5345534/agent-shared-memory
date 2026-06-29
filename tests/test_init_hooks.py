@@ -22,7 +22,7 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from hooks import pi, opencode, github_actions, none
+from hooks import pi_lifecycle, opencode, github_actions, none
 from knowledge_query import detect_harness
 
 
@@ -38,7 +38,7 @@ def test_detect_harness_pi(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     name, module_path = detect_harness(tmp_path)
     assert name == "pi"
-    assert module_path == "hooks.pi"
+    assert module_path == "hooks.pi_lifecycle"
 
 
 def test_detect_harness_opencode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -113,90 +113,101 @@ def _check_hook_script_syntax(path: Path) -> None:
     assert "knowledge_absorb.py" in content, "Hook script missing absorb reference"
 
 
-class TestPiHookAdapter:
-    """Tests for scripts.hooks.pi.install()."""
+class TestPiLifecycleAdapter:
+    """Tests for scripts.hooks.pi_lifecycle.install()."""
 
-    def test_install_pi_hook_ok(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Pi hook is installed workspace-locally by default when ~/.pi/ exists."""
+    def _write_agents_md(self, root: Path) -> None:
+        (root / "AGENTS.md").write_text("# test\n", encoding="utf-8")
+
+    def test_install_extension_ok(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Pi lifecycle extension is installed workspace-locally by default."""
         root = tmp_path / "ws"
         root.mkdir()
+        self._write_agents_md(root)
         fake_home = tmp_path / "home"
         fake_pi = fake_home / ".pi"
         fake_pi.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: fake_home)
 
-        result = pi.install(root)
+        result = pi_lifecycle.install(root)
         assert result["status"] == "ok"
         assert result["path"] is not None
-        assert result["scope"] == "workspace"
 
-        hook_path = Path(result["path"])  # type: ignore[arg-type]
-        assert hook_path == root / ".pi" / "hooks" / "post-compact" / "shared-knowledge-absorb.sh"
-        _check_hook_script_syntax(hook_path)
+        ext_path = Path(result["path"])
+        assert ext_path.suffix == ".ts"
+        assert "shared-knowledge-lifecycle" in ext_path.name
+        assert ext_path.parent.name == "extensions"
+        # Check content has expected Pi API references
+        content = ext_path.read_text(encoding="utf-8")
+        assert "session_before_compact" in content
+        assert "session_compact" in content
+        assert "knowledge_compact_producer" in content
+        assert "knowledge_absorb" in content
+        assert "detached" in content
 
-    def test_install_pi_hook_skipped_when_no_pi(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Pi adapter returns 'skipped' when ~/.pi/ does not exist."""
+    def test_install_skipped_when_no_pi(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Adapter returns 'skipped' when ~/.pi/ does not exist."""
         fake_home = tmp_path / "home"
         fake_home.mkdir()
         monkeypatch.setattr(Path, "home", lambda: fake_home)
 
-        result = pi.install(tmp_path)
+        result = pi_lifecycle.install(tmp_path)
         assert result["status"] == "skipped"
         assert "not detected" in result["message"]
 
-    def test_install_pi_hook_skipped_when_already_installed(
+    def test_install_skipped_when_already_installed(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """Pi hook returns 'skipped' when hook script already matches."""
+        """Returns 'skipped' when extension file already matches."""
         root = tmp_path / "ws"
         root.mkdir()
+        self._write_agents_md(root)
         fake_home = tmp_path / "home"
         fake_pi = fake_home / ".pi"
         fake_pi.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: fake_home)
 
-        # First install
-        result1 = pi.install(root)
+        result1 = pi_lifecycle.install(root)
         assert result1["status"] == "ok"
 
-        # Second install — should be skipped
-        result2 = pi.install(root)
+        result2 = pi_lifecycle.install(root)
         assert result2["status"] == "skipped"
         assert "already installed" in result2["message"]
 
-    def test_pi_hook_script_content(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Pi hook script references the workspace-local absorb script path."""
+    def test_install_global_scope(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Global scope installs extension under ~/.pi/agent/extensions/."""
         root = tmp_path / "ws"
         root.mkdir()
+        self._write_agents_md(root)
         fake_home = tmp_path / "home"
         fake_pi = fake_home / ".pi"
         fake_pi.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: fake_home)
 
-        result = pi.install(root)
+        result = pi_lifecycle.install(root, scope="global")
         assert result["status"] == "ok"
-        hook_path = Path(result["path"])  # type: ignore[arg-type]
-        content = hook_path.read_text(encoding="utf-8")
-        # The hook should reference knowledge_absorb.py via the workspace root.
-        assert "$ROOT/shared-knowledge/scripts/knowledge_absorb.py" in content
-        # The hook should use set -e
-        assert "set -e" in content
+        ext_path = Path(result["path"])
+        assert ext_path.parent == fake_pi / "agent" / "extensions"
+        assert ext_path.suffix == ".ts"
 
-    def test_install_pi_hook_global_scope_is_opt_in(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Pi global hook is only installed when scope='global' is requested."""
+    def test_install_legacy_hook(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """legacy_hook=True also creates the old post-compact shell script."""
         root = tmp_path / "ws"
         root.mkdir()
+        self._write_agents_md(root)
         fake_home = tmp_path / "home"
         fake_pi = fake_home / ".pi"
         fake_pi.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: fake_home)
 
-        result = pi.install(root, scope="global")
+        result = pi_lifecycle.install(root, legacy_hook=True)
         assert result["status"] == "ok"
-        assert result["scope"] == "global"
-        hook_path = Path(result["path"])  # type: ignore[arg-type]
-        assert hook_path == fake_pi / "hooks" / "post-compact" / "shared-knowledge-absorb.sh"
-        _check_hook_script_syntax(hook_path)
+        assert "results" in result
+        hook_path = root / ".pi" / "hooks" / "post-compact" / "shared-knowledge-absorb.sh"
+        assert hook_path.exists()
+        hook_content = hook_path.read_text(encoding="utf-8")
+        assert "DEPRECATED" in hook_content
+        assert "knowledge_absorb.py" in hook_content
 
 
 class TestOpenCodeHookAdapter:
@@ -304,7 +315,7 @@ def test_adapter_return_contract(adapter_name: str, setup_fn: Any, monkeypatch: 
         fake_home.mkdir(parents=True)
         (fake_home / ".pi").mkdir()
         monkeypatch.setattr(Path, "home", lambda: fake_home)
-        result = pi.install(tmp_path)
+        result = pi_lifecycle.install(tmp_path)
     elif adapter_name == "opencode":
         (tmp_path / ".opencode.json").write_text("{}", encoding="utf-8")
         result = opencode.install(tmp_path)

@@ -1945,7 +1945,7 @@ def detect_harness(root: Path) -> tuple[str, str]:
     """
     # Priority 1: Pi harness
     if (Path.home() / ".pi").is_dir():
-        return "pi", "hooks.pi"
+        return "pi", "hooks.pi_lifecycle"
 
     # Priority 2: OpenCode harness
     if (root / ".opencode.json").is_file():
@@ -1959,7 +1959,7 @@ def detect_harness(root: Path) -> tuple[str, str]:
     return "none", "hooks.none"
 
 
-def _init_install_hook(root: Path, dry_run: bool = False, hook_scope: str = "workspace") -> dict:
+def _init_install_hook(root: Path, dry_run: bool = False, hook_scope: str = "workspace", legacy_hook: bool = False) -> dict:
     """Detect the active harness and install the matching hook adapter.
 
     Uses detect_harness() to find the active harness, then dynamically
@@ -1979,9 +1979,10 @@ def _init_install_hook(root: Path, dry_run: bool = False, hook_scope: str = "wor
                 "harness": harness_name,
             }
         scope_suffix = f" ({hook_scope} scope)" if harness_name == "pi" else ""
+        legacy_suffix = " + legacy shell hook" if legacy_hook else ""
         return {
             "status": "ok",
-            "message": f"[dry-run] would install {harness_name} hook adapter{scope_suffix}",
+            "message": f"[dry-run] would install {harness_name} hook adapter{scope_suffix}{legacy_suffix}",
             "path": None,
             "harness": harness_name,
             "scope": hook_scope if harness_name == "pi" else None,
@@ -2000,7 +2001,7 @@ def _init_install_hook(root: Path, dry_run: bool = False, hook_scope: str = "wor
         }
 
     if harness_name == "pi":
-        result = adapter.install(root, scope=hook_scope)
+        result = adapter.install(root, scope=hook_scope, legacy_hook=legacy_hook)
     else:
         result = adapter.install(root)
     result["harness"] = harness_name
@@ -2025,6 +2026,7 @@ def cmd_init(root: Path, args: argparse.Namespace | None = None) -> int:
     skip_hook = getattr(args, "skip_hook", False) if args else False
     dry_run = getattr(args, "dry_run", False) if args else False
     hook_scope = getattr(args, "hook_scope", "workspace") if args else "workspace"
+    legacy_hook = getattr(args, "legacy_hook", False) if args else False
 
     print("knowledge init")
     if dry_run:
@@ -2097,7 +2099,7 @@ def cmd_init(root: Path, args: argparse.Namespace | None = None) -> int:
 
         # Step 6: Hook adapter (Slice 3 — harness detection + dispatch)
         if not skip_hook:
-            result = _init_install_hook(root, hook_scope=hook_scope)
+            result = _init_install_hook(root, hook_scope=hook_scope, legacy_hook=legacy_hook)
             steps.append(("🪝  hook", result))
         else:
             steps.append(("🪝  hook", {"status": "skipped", "message": "skipped (--skip-hook)"}))
@@ -2302,6 +2304,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("workspace", "global"),
         default="workspace",
         help="Pi hook install scope: workspace-local by default; use global to write under ~/.pi",
+    )
+    init_parser.add_argument(
+        "--legacy-hook",
+        action="store_true",
+        help="Also install the legacy post-compact shell hook (deprecated, use extension instead)",
     )
 
     return parser
